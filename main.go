@@ -4,8 +4,9 @@ import (
 	"flag"
 	"log"
 	"os"
+	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -42,16 +43,12 @@ func main() {
 
 	client := kubernetes.NewForConfigOrDie(config)
 
-	nsList, err := client.Namespaces().List(metav1.ListOptions{})
-	if err != nil {
-		log.Fatalf("unable to get namespaces: %v", err)
-	}
+	// sharedInformer acts like a cache for resources so that we dont hammer the api server
+	sharedInformers := informers.NewSharedInformerFactory(client, 10*time.Minute)
 
-	for _, ns := range nsList.Items {
-		log.Printf("NAMESPACE: %v (%v): created on %v",
-			ns.GetName(),
-			ns.UID,
-			ns.CreationTimestamp,
-		)
-	}
+	// this controller will deal with RDS dbs
+	rdsController := NewRDSController(client, sharedInformers.Core().V1().ConfigMaps())
+
+	sharedInformers.Start(nil)
+	rdsController.Run(nil)
 }
