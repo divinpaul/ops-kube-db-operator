@@ -6,14 +6,18 @@ import (
 	"os"
 	"time"
 
+	"k8s.io/client-go/util/workqueue"
+
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/gugahoi/rds-operator/pkg/controller"
 )
 
 func main() {
-	version := "0.0.0"
+	version := "0.0.1"
 	log.Printf("rds-controller version: %v", version)
 
 	// read kube config file from flag
@@ -33,7 +37,7 @@ func main() {
 		log.Printf("using kubeconfig %v", kubeconfig)
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 	} else {
-		log.Println("running inside cluster")
+		log.Printf("running inside cluster")
 		config, err = rest.InClusterConfig()
 	}
 
@@ -43,12 +47,15 @@ func main() {
 
 	client := kubernetes.NewForConfigOrDie(config)
 
+	// create the work queue
+	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+
 	// sharedInformer acts like a cache for resources so that we dont hammer the api server
 	sharedInformers := informers.NewSharedInformerFactory(client, 10*time.Minute)
 
 	// this controller will deal with RDS dbs
-	rdsController := NewRDSController(client, sharedInformers.Core().V1().ConfigMaps())
+	rdsController := controller.New(queue, client, sharedInformers.Core().V1().ConfigMaps())
 
 	sharedInformers.Start(nil)
-	rdsController.Run(nil)
+	rdsController.Run(2, nil)
 }
