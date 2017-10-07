@@ -138,12 +138,16 @@ func (c *RDSController) processConfigMap(key string) error {
 	if err != nil {
 		return fmt.Errorf("error splitting namespace/key from obj %s: %v", key, err)
 	}
-
+	instanceName := fmt.Sprintf("%s-%s", ns, name)
 	cm, err := c.cmLister.ConfigMaps(ns).Get(name)
 	if err != nil {
 		// if we get here it is likely the ConfigMap has been deleted
 		log.Printf("failed to retrieve up to date cm %s: %v - it has likely been deleted", key, err)
-		// TODO: Delete RDS? Or do something about it
+		// TODO: Delete RDS? Or do something smart about it
+		_, err := c.rds.Delete(instanceName)
+		if err != nil {
+			return fmt.Errorf("error deleting RDS Instance %s: %v", key, err)
+		}
 		return nil
 	}
 
@@ -159,17 +163,23 @@ func (c *RDSController) processConfigMap(key string) error {
 
 	if newCm.Data == nil || newCm.Data["ARN"] == "" {
 		// if there is no ARN set in the CM, then we need to create a new RDS Instance
+		// TODO: check if one already exists, possibly have a mechanism to import?
 		log.Printf("Creating RDS Instance: %s", key)
-		db, err := c.rds.Create(fmt.Sprintf("%s-%s", ns, name))
+		db, err := c.rds.Create(instanceName)
 		if err != nil {
 			return fmt.Errorf("Failed to create RDS Instance for %s: %v", key, err)
 		}
 
 		// store the ARN in the configmap
-		data := make(map[string]string)
-		data["ARN"] = *db.ARN
-		newCm.Data = data
-		log.Printf("Updating %s with ARN %s", key, *db.Address)
+		if newCm.Data == nil {
+			data := make(map[string]string)
+			data["ARN"] = *db.ARN
+			newCm.Data = data
+		} else {
+			newCm.Data["ARN"] = *db.ARN
+		}
+
+		log.Printf("Updating %s with ARN %s", key, *db.ARN)
 		_, err = c.cmGetter.ConfigMaps(ns).Update(newCm)
 		if err != nil {
 			return fmt.Errorf("failed to update cm %s: %v", key, err)
