@@ -100,24 +100,20 @@ func (c *RDSController) processNextWorkItem() bool {
 	// indicate to queue when work is finished on a specific item
 	defer c.queue.Done(key)
 
-	log.Printf("DO SOME STUFF: %v", key)
-	return true
-
-	// TODO: actually do something
-	// err := c.DoSomething(key.(string))
-	// if err == nil {
-	// // processed succesfully, lets forget item in queue and return success
-	// 	c.queue.Forget(key)
-	// 	return true
-	// }
+	err := c.processConfigMap(key.(string))
+	if err == nil {
+		// processed succesfully, lets forget item in queue and return success
+		c.queue.Forget(key)
+		return true
+	}
 
 	// There was an error processing the item, log and requeue
-	// runtime.HandleError("some error", err)
+	runtime.HandleError(fmt.Errorf("%v", err))
 
 	// Add item back in with a rate limited backoff
-	// c.queue.AddRateLimited(key)
+	c.queue.AddRateLimited(key)
 
-	// return true
+	return true
 }
 
 func (c *RDSController) enqueue(obj interface{}) {
@@ -126,4 +122,16 @@ func (c *RDSController) enqueue(obj interface{}) {
 		runtime.HandleError(fmt.Errorf("error obtaining key for enqueued object: %v", err))
 	}
 	c.queue.Add(key)
+}
+
+func (c *RDSController) processConfigMap(key string) error {
+	// get resource name and namespace out of key
+	ns, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return fmt.Errorf("error splitting namespace/key from obj %s: %v", key, err)
+	}
+
+	log.Printf("Processing: %s/%s", ns, name)
+
+	return nil
 }
