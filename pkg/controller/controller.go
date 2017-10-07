@@ -18,6 +18,9 @@ import (
 	listercorev1 "k8s.io/client-go/listers/core/v1"
 	apicorev1 "k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/MYOB-Technology/dataform/pkg/db"
+	"github.com/MYOB-Technology/dataform/pkg/service"
 )
 
 // RDSController is a controller for RDS DBs.
@@ -30,6 +33,8 @@ type RDSController struct {
 	cmSynced cache.InformerSynced
 	// queue is where incoming work is placed - it handles de-dup and rate limiting
 	queue workqueue.RateLimitingInterface
+	// rds is how we interact with AWS RDS Service
+	rds *db.Manager
 }
 
 // New instantiates an rds controller
@@ -44,6 +49,7 @@ func New(
 		cmLister: cmInformer.Lister(),
 		cmSynced: cmInformer.Informer().HasSynced,
 		queue:    queue,
+		rds:      db.NewManager(service.New("")),
 	}
 
 	cmInformer.Informer().AddEventHandler(
@@ -135,7 +141,10 @@ func (c *RDSController) processConfigMap(key string) error {
 
 	cm, err := c.cmLister.ConfigMaps(ns).Get(name)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve up to date cm %s: %v", key, err)
+		// if we get here it is likely the ConfigMap has been deleted
+		log.Printf("failed to retrieve up to date cm %s: %v - it has likely been deleted", key, err)
+		// TODO: Delete RDS? Or do something about it
+		return nil
 	}
 
 	// if our annotation is not present, let's bail
@@ -148,17 +157,26 @@ func (c *RDSController) processConfigMap(key string) error {
 	// we have cm that needs to be processed
 	log.Printf("Processing: %s/%s", ns, name)
 
-	// Should do stuff with RDS here
-	ARN := "aws:123:123:database!"
+	if newCm.Data == nil || newCm.Data["ARN"] == "" {
+		// if there is no ARN set in the CM, then we need to create a new RDS Instance
+		log.Printf("Creating RDS Instance: %s", key)
+		db, err := c.rds.Create(fmt.Sprintf("%s-%s", ns, name))
+		if err != nil {
+			return fmt.Errorf("Failed to create RDS Instance for %s: %v", key, err)
+		}
 
-	data := make(map[string]string)
-	data["ARN"] = ARN
-	newCm.Data = data
-
-	log.Printf("Updating %s with ARN %s", key, ARN)
-	_, err = c.cmGetter.ConfigMaps(ns).Update(newCm)
-	if err != nil {
-		return fmt.Errorf("failed to update cm %s: %v", key, err)
+		// store the ARN in the configmap
+		data := make(map[string]string)
+		data["ARN"] = *db.ARN
+		newCm.Data = data
+		log.Printf("Updating %s with ARN %s", key, *db.Address)
+		_, err = c.cmGetter.ConfigMaps(ns).Update(newCm)
+		if err != nil {
+			return fmt.Errorf("failed to update cm %s: %v", key, err)
+		}
+	} else {
+		// if there is an ARN set, we might need to update
+		log.Printf("Updating RDS Instance: %s (doing nothing for now)", key)
 	}
 
 	log.Printf("Finished updating %s", key)
