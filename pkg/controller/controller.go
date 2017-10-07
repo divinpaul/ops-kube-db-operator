@@ -13,8 +13,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	informercorev1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	listercorev1 "k8s.io/client-go/listers/core/v1"
+	apicorev1 "k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -131,7 +133,34 @@ func (c *RDSController) processConfigMap(key string) error {
 		return fmt.Errorf("error splitting namespace/key from obj %s: %v", key, err)
 	}
 
+	cm, err := c.cmLister.ConfigMaps(ns).Get(name)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve up to date cm %s: %v", key, err)
+	}
+
+	// if our annotation is not present, let's bail
+	if cm.Annotations["gustavo.com.au/rds"] != "true" {
+		return nil
+	}
+	newCmInf, _ := scheme.Scheme.DeepCopy(cm)
+	newCm := newCmInf.(*apicorev1.ConfigMap)
+
+	// we have cm that needs to be processed
 	log.Printf("Processing: %s/%s", ns, name)
 
+	// Should do stuff with RDS here
+	ARN := "aws:123:123:database!"
+
+	data := make(map[string]string)
+	data["ARN"] = ARN
+	newCm.Data = data
+
+	log.Printf("Updating %s with ARN %s", key, ARN)
+	_, err = c.cmGetter.ConfigMaps(ns).Update(newCm)
+	if err != nil {
+		return fmt.Errorf("failed to update cm %s: %v", key, err)
+	}
+
+	log.Printf("Finished updating %s", key)
 	return nil
 }
