@@ -115,7 +115,7 @@ func (c *RDSController) processNextWorkItem() bool {
 	// indicate to queue when work is finished on a specific item
 	defer c.queue.Done(key)
 
-	err := c.processConfigMap(key.(string))
+	err := c.processDB(key.(string))
 	if err == nil {
 		// processed succesfully, lets forget item in queue and return success
 		c.queue.Forget(key)
@@ -139,13 +139,19 @@ func (c *RDSController) enqueue(obj interface{}) {
 	c.queue.Add(key)
 }
 
-func (c *RDSController) processConfigMap(key string) error {
+func (c *RDSController) processDB(key string) error {
 	// get resource name and namespace out of key
 	ns, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return fmt.Errorf("error splitting namespace/key from obj %s: %v", key, err)
 	}
 	log.Printf("HEYOH: %s/%s", ns, name)
+
+	db, err := c.lister.DBs(ns).Get(name)
+	if err != nil {
+		log.Printf("failed to retrieve up to date db resource %s, it has most likely been deleted: %v", key, err)
+	}
+	log.Printf("%s: %v", key, db.Spec.Type)
 
 	log.Printf("Finished updating %s", key)
 	return nil
