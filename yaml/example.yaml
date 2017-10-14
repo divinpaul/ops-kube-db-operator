@@ -1,0 +1,6 @@
+apiVersion: gugahoi.com.au/v1alpha1
+kind: DB
+metadata:
+  name: example-db
+spec:
+    type: "postgres"
