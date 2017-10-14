@@ -24,3 +24,13 @@ type DBSpec struct {
 type DBStatus struct {
 	Ready string `json:"ready"`
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// DBList is a list of DB resources
+type DBList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []DB `json:"items"`
+}
