@@ -6,14 +6,14 @@ import (
 	"os"
 	"time"
 
-	"k8s.io/client-go/util/workqueue"
-
-	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/gugahoi/rds-operator/pkg/controller"
+
+	dbClientSet "github.com/gugahoi/rds-operator/pkg/client/clientset/versioned"
+	dbInformer "github.com/gugahoi/rds-operator/pkg/client/informers/externalversions"
 )
 
 func main() {
@@ -41,21 +41,26 @@ func main() {
 		config, err = rest.InClusterConfig()
 	}
 
+	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		log.Fatalf("error creating client: %v", err)
+		log.Fatalf("error creating kubernetes client: %v", err)
 	}
 
-	client := kubernetes.NewForConfigOrDie(config)
+	dbClient, err := dbClientSet.NewForConfig(config)
+	if err != nil {
+		log.Fatalf("error creating db client: %v", err)
+	}
 
-	// create the work queue
-	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
-
-	// sharedInformer acts like a cache for resources so that we dont hammer the api server
-	sharedInformers := informers.NewSharedInformerFactory(client, 10*time.Minute)
+	// dbInformerFactory acts like a cache for db resources like above
+	dbInformerFactory := dbInformer.NewSharedInformerFactory(dbClient, 10*time.Minute)
 
 	// this controller will deal with RDS dbs
-	rdsController := controller.New(queue, client, sharedInformers.Core().V1().ConfigMaps())
+	rdsController := controller.New(client, dbClient, dbInformerFactory)
 
-	sharedInformers.Start(nil)
-	rdsController.Run(2, nil)
+	// start go routines with our informers
+	go dbInformerFactory.Start(nil)
+
+	if err = rdsController.Run(2, nil); err != nil {
+		log.Fatalf("Error running controller: %v", err)
+	}
 }
