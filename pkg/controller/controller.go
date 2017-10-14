@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"log"
+	"reflect"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -58,6 +59,17 @@ func New(
 		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DB"),
 		rds:      db.NewManager(service.New("")),
 	}
+
+	log.Print("Setting up event handlers")
+	informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: c.enqueue,
+		UpdateFunc: func(old, new interface{}) {
+			if !reflect.DeepEqual(old, new) {
+				c.enqueue(new)
+			}
+		},
+		DeleteFunc: c.enqueue,
+	})
 
 	return c
 }
