@@ -23,6 +23,7 @@ type DBSpec struct {
 // DBStatus is the status for a DB resource
 type DBStatus struct {
 	Ready string `json:"ready"`
+	ARN   string `json:"arn"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

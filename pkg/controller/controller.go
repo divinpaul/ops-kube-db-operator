@@ -8,12 +8,14 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/wait"
 
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/util/workqueue"
 
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
+	"github.com/gugahoi/rds-operator/pkg/apis/db/v1alpha1"
 	dbClientSet "github.com/gugahoi/rds-operator/pkg/client/clientset/versioned"
 	dbInformerFactory "github.com/gugahoi/rds-operator/pkg/client/informers/externalversions"
 	dbLister "github.com/gugahoi/rds-operator/pkg/client/listers/db/v1alpha1"
@@ -145,7 +147,6 @@ func (c *RDSController) processDB(key string) error {
 	if err != nil {
 		return fmt.Errorf("error splitting namespace/key from obj %s: %v", key, err)
 	}
-	log.Printf("HEYOH: %s/%s", ns, name)
 
 	db, err := c.lister.DBs(ns).Get(name)
 	if err != nil {
@@ -154,6 +155,47 @@ func (c *RDSController) processDB(key string) error {
 	}
 	log.Printf("%s: %v", key, db.Spec.Type)
 
+	// deep copy to not change the cache
+	newDbInterface, _ := scheme.Scheme.DeepCopy(db)
+	newDb := newDbInterface.(*v1alpha1.DB)
+
+	// create the db now
+	newObj, err := createDb(c.rds, newDb)
+	if err != nil {
+		// failed creating the database
+		return fmt.Errorf("failed creating db %s: requeuing - %v", key, err)
+	}
+	// update the db information
+	_, err = c.dbClient.Db().DBs(ns).Update(newObj)
+	if err != nil {
+		return fmt.Errorf("failed to update db %s: %v", key, err)
+	}
+
 	log.Printf("Finished updating %s", key)
 	return nil
+}
+
+func createDb(rds *db.Manager, resource *v1alpha1.DB) (*v1alpha1.DB, error) {
+	id := fmt.Sprintf("kubernetes-%s", resource.GetUID())
+
+	var instance *db.DB
+	var err error
+	if resource.Status.ARN == "" {
+		// need to create a new db
+		log.Printf("Creating DB with ID: %s", id)
+		instance, err = rds.Create(id)
+		if err != nil {
+			return nil, err
+		}
+		resource.Status.ARN = *instance.ARN
+	} else {
+		// need to update the status
+		instance, err = rds.Stat(id)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	resource.Status.Ready = *instance.Status
+	return resource, nil
 }
