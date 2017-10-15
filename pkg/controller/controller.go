@@ -150,6 +150,7 @@ func (c *RDSController) processDB(key string) error {
 	db, err := c.lister.DBs(ns).Get(name)
 	if err != nil {
 		log.Printf("failed to retrieve up to date db resource %s, it has most likely been deleted: %v", key, err)
+		return nil
 	}
 	log.Printf("%s: %v", key, db.Spec.Type)
 
