@@ -19,10 +19,11 @@ limitations under the License.
 package internalinterfaces
 
 import (
-	versioned "github.com/gugahoi/rds-operator/pkg/client/clientset/versioned"
+	time "time"
+
+	versioned "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	cache "k8s.io/client-go/tools/cache"
-	time "time"
 )
 
 type NewInformerFunc func(versioned.Interface, time.Duration) cache.SharedIndexInformer

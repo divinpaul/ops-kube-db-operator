@@ -19,15 +19,16 @@ limitations under the License.
 package externalversions
 
 import (
-	versioned "github.com/gugahoi/rds-operator/pkg/client/clientset/versioned"
-	db "github.com/gugahoi/rds-operator/pkg/client/informers/externalversions/db"
-	internalinterfaces "github.com/gugahoi/rds-operator/pkg/client/informers/externalversions/internalinterfaces"
-	runtime "k8s.io/apimachinery/pkg/runtime"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
-	cache "k8s.io/client-go/tools/cache"
 	reflect "reflect"
 	sync "sync"
 	time "time"
+
+	versioned "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
+	db "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions/db"
+	internalinterfaces "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions/internalinterfaces"
+	runtime "k8s.io/apimachinery/pkg/runtime"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 type sharedInformerFactory struct {

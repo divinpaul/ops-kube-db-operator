@@ -4,6 +4,6 @@ services:
   glide:
     image: 'myobplatform/go-glide:1.8-alpine'
     volumes:
-      - .:/go/src/github.com/gugahoi/rds-operator
+      - .:/go/src/github.com/MYOB-Technology/ops-kube-db-operator
     entrypoint: glide
-    working_dir: /go/src/github.com/gugahoi/rds-operator
+    working_dir: /go/src/github.com/MYOB-Technology/ops-kube-db-operator

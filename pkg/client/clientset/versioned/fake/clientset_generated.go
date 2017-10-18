@@ -16,9 +16,9 @@ limitations under the License.
 package fake
 
 import (
-	clientset "github.com/gugahoi/rds-operator/pkg/client/clientset/versioned"
-	dbv1alpha1 "github.com/gugahoi/rds-operator/pkg/client/clientset/versioned/typed/db/v1alpha1"
-	fakedbv1alpha1 "github.com/gugahoi/rds-operator/pkg/client/clientset/versioned/typed/db/v1alpha1/fake"
+	clientset "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
+	dbv1alpha1 "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned/typed/db/v1alpha1"
+	fakedbv1alpha1 "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned/typed/db/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

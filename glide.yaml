@@ -1,4 +1,4 @@
-package: github.com/gugahoi/rds-operator
+package: github.com/MYOB-Technology/ops-kube-db-operator
 import:
 - package: k8s.io/client-go
   version: ~4.0.0

@@ -16,8 +16,8 @@ limitations under the License.
 package versioned
 
 import (
+	dbv1alpha1 "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned/typed/db/v1alpha1"
 	glog "github.com/golang/glog"
-	dbv1alpha1 "github.com/gugahoi/rds-operator/pkg/client/clientset/versioned/typed/db/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

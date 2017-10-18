@@ -10,10 +10,10 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/gugahoi/rds-operator/pkg/controller"
+	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/controller"
 
-	dbClientSet "github.com/gugahoi/rds-operator/pkg/client/clientset/versioned"
-	dbInformer "github.com/gugahoi/rds-operator/pkg/client/informers/externalversions"
+	dbClientSet "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
+	dbInformer "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions"
 )
 
 func main() {

@@ -19,15 +19,16 @@ limitations under the License.
 package v1alpha1
 
 import (
-	db_v1alpha1 "github.com/gugahoi/rds-operator/pkg/apis/db/v1alpha1"
-	versioned "github.com/gugahoi/rds-operator/pkg/client/clientset/versioned"
-	internalinterfaces "github.com/gugahoi/rds-operator/pkg/client/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/gugahoi/rds-operator/pkg/client/listers/db/v1alpha1"
+	time "time"
+
+	db_v1alpha1 "github.com/MYOB-Technology/ops-kube-db-operator/pkg/apis/db/v1alpha1"
+	versioned "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
+	internalinterfaces "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/listers/db/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
-	time "time"
 )
 
 // DBInformer provides access to a shared informer and lister for

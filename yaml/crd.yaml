@@ -1,9 +1,9 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: dbs.gugahoi.com.au
+  name: dbs.myob.com
 spec:
-  group: gugahoi.com.au
+  group: myob.com
   version: v1alpha1
   names:
     kind: DB

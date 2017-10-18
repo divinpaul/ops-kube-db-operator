@@ -16,7 +16,7 @@ limitations under the License.
 package fake
 
 import (
-	v1alpha1 "github.com/gugahoi/rds-operator/pkg/apis/db/v1alpha1"
+	v1alpha1 "github.com/MYOB-Technology/ops-kube-db-operator/pkg/apis/db/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

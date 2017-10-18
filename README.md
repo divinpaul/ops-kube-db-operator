@@ -21,11 +21,11 @@ go run *.go -kubeconfig ~/.kube/config
 
 ```bash
 ❯ cd $GOPATH/src/k8s.io/code-generator
-❯ ./generate-groups.sh all github.com/gugahoi/rds-operator/pkg/client github.com/gugahoi/rds-operator/pkg/apis "db:v1alpha1" --go-header-file ./hack/boilerplate.go.txt
+❯ ./generate-groups.sh all github.com/MYOB-Technology/ops-kube-db-operator/pkg/client github.com/MYOB-Technology/ops-kube-db-operator/pkg/apis "db:v1alpha1" --go-header-file ./hack/boilerplate.go.txt
 Generating deepcopy funcs
-Generating clientset for db:v1alpha1 at github.com/gugahoi/rds-operator/pkg/client/clientset
-Generating listers for db:v1alpha1 at github.com/gugahoi/rds-operator/pkg/client/listers
-Generating informers for db:v1alpha1 at github.com/gugahoi/rds-operator/pkg/client/informers
+Generating clientset for db:v1alpha1 at github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset
+Generating listers for db:v1alpha1 at github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/listers
+Generating informers for db:v1alpha1 at github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers
 ```
 
 > If it is failing with the following, make sure to clone the latest version of github.com/kubernetes/gengo into the `vendor/k8s.io/gengo` folder

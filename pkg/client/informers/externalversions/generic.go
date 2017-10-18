@@ -20,7 +20,8 @@ package externalversions
 
 import (
 	"fmt"
-	v1alpha1 "github.com/gugahoi/rds-operator/pkg/apis/db/v1alpha1"
+
+	v1alpha1 "github.com/MYOB-Technology/ops-kube-db-operator/pkg/apis/db/v1alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )

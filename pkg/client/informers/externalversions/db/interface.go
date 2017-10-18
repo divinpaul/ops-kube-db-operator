@@ -19,8 +19,8 @@ limitations under the License.
 package db
 
 import (
-	v1alpha1 "github.com/gugahoi/rds-operator/pkg/client/informers/externalversions/db/v1alpha1"
-	internalinterfaces "github.com/gugahoi/rds-operator/pkg/client/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions/db/v1alpha1"
+	internalinterfaces "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.
