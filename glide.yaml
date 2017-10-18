@@ -5,3 +5,4 @@ import:
   subpackages:
   - rest
   - tools/clientcmd
+- package: github.com/MYOB-Technology/dataform
