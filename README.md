@@ -10,6 +10,18 @@ glide install
 
 ## Running from source
 
+* Set required AWS configuration via environment variables (for now)
+
+```
+DB_SECURITYGROUPID=sg-2610f740
+DB_SUBNETGROUPNAME=test-rds-dataform
+DB_ENCRYPTIONKEYARN=arn:aws:kms:ap-southeast-2:12345678901:key/123456789-2f82-467f-b61e-123456789a
+
+export DB_SECURITYGROUPID DB_SUBNETGROUPNAME DB_ENCRYPTIONKEYARN
+```
+* authenticate to kubes
+* authenticate to AWS 
+* run it locally
 ```bash
 go run *.go -kubeconfig ~/.kube/config
 ```

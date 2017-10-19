@@ -1,9 +1,18 @@
 ---
 version: '3'
 services:
-  glide:
+  worker: &base
     image: 'myobplatform/go-glide:1.8-alpine'
     volumes:
       - .:/go/src/github.com/MYOB-Technology/ops-kube-db-operator
     entrypoint: glide
     working_dir: /go/src/github.com/MYOB-Technology/ops-kube-db-operator
+
+  go:
+    <<: *base
+    entrypoint: go
+
+  glide:
+    <<: *base
+    entrypoint: glide
+

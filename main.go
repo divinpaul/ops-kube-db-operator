@@ -30,8 +30,8 @@ func main() {
 		kubeconfig = os.Getenv("KUBECONFIG")
 	}
 
-	var err error
 	var config *rest.Config
+	var err error
 	// if flag has not been passed and env not set, presume running in cluster
 	if kubeconfig != "" {
 		log.Printf("using kubeconfig %v", kubeconfig)
@@ -54,8 +54,13 @@ func main() {
 	// dbInformerFactory acts like a cache for db resources like above
 	dbInformerFactory := dbInformer.NewSharedInformerFactory(dbClient, 10*time.Minute)
 
+	dbConfig, err := controller.NewDBInstanceConfig()
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+
 	// this controller will deal with RDS dbs
-	rdsController := controller.New(client, dbClient, dbInformerFactory)
+	rdsController := controller.New(client, dbClient, dbInformerFactory, dbConfig)
 
 	// start go routines with our informers
 	go dbInformerFactory.Start(nil)

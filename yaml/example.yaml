@@ -4,3 +4,6 @@ metadata:
   name: example-db
 spec:
     type: "postgres"
+    name: "appname"
+    size: "db.t2.small"
+

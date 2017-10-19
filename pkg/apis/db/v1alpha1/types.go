@@ -18,6 +18,15 @@ type DB struct {
 // DBSpec is the spec for a DB resource
 type DBSpec struct {
 	Type string `json:"type"`
+	Name string `json:"name"`
+	Size string `json:"size,omitempty"`
+	//	Port          int64  `json:"port,omitempty"`
+	//	Subnet        string `json:"subnet"`
+	//	SecurityGroup string `json:"securityGroup"`
+	Multizone bool `json:"multizone,omitempty"`
+	//	Username      string `json:"username,omitempty"`
+	//	Password      string `json:"password,omitempty"`
+	//	EncryptionKey string `json:"encryptionKey,omitempty"`
 }
 
 // DBStatus is the status for a DB resource
