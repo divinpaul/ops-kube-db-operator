@@ -1,0 +1,6 @@
+vendor/
+Dockerfile
+.dockerignore
+LICENSE
+README.md
+docker-compose.yaml

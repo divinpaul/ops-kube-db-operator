@@ -16,8 +16,9 @@ import (
 	dbInformer "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions"
 )
 
+var version = "snapshot"
+
 func main() {
-	version := "0.0.1"
 	log.Printf("rds-controller version: %v", version)
 
 	// read kube config file from flag
