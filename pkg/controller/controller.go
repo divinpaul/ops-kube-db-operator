@@ -17,10 +17,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/apis/db/v1alpha1"
+	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/apis/postgresdb/v1alpha1"
 	dbClientSet "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
 	dbInformerFactory "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions"
-	dbLister "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/listers/db/v1alpha1"
+	dbLister "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/listers/postgresdb/v1alpha1"
 
 	"github.com/MYOB-Technology/dataform/pkg/db"
 	"github.com/MYOB-Technology/dataform/pkg/service"

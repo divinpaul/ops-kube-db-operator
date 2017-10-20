@@ -1,23 +1,12 @@
 /*
-Copyright 2017 The Kubernetes Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+MYOB 2017
+All Rights Reserved
 */
 package versioned
 
 import (
-	dbv1alpha1 "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned/typed/db/v1alpha1"
 	glog "github.com/golang/glog"
+	postgresdbv1alpha1 "github.com/myob-technology/ops-kube-db-operator/pkg/client/clientset/versioned/typed/postgresdb/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -25,27 +14,27 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	DbV1alpha1() dbv1alpha1.DbV1alpha1Interface
+	PostgresdbV1alpha1() postgresdbv1alpha1.PostgresdbV1alpha1Interface
 	// Deprecated: please explicitly pick a version if possible.
-	Db() dbv1alpha1.DbV1alpha1Interface
+	Postgresdb() postgresdbv1alpha1.PostgresdbV1alpha1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	dbV1alpha1 *dbv1alpha1.DbV1alpha1Client
+	postgresdbV1alpha1 *postgresdbv1alpha1.PostgresdbV1alpha1Client
 }
 
-// DbV1alpha1 retrieves the DbV1alpha1Client
-func (c *Clientset) DbV1alpha1() dbv1alpha1.DbV1alpha1Interface {
-	return c.dbV1alpha1
+// PostgresdbV1alpha1 retrieves the PostgresdbV1alpha1Client
+func (c *Clientset) PostgresdbV1alpha1() postgresdbv1alpha1.PostgresdbV1alpha1Interface {
+	return c.postgresdbV1alpha1
 }
 
-// Deprecated: Db retrieves the default version of DbClient.
+// Deprecated: Postgresdb retrieves the default version of PostgresdbClient.
 // Please explicitly pick a version.
-func (c *Clientset) Db() dbv1alpha1.DbV1alpha1Interface {
-	return c.dbV1alpha1
+func (c *Clientset) Postgresdb() postgresdbv1alpha1.PostgresdbV1alpha1Interface {
+	return c.postgresdbV1alpha1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -64,7 +53,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}
 	var cs Clientset
 	var err error
-	cs.dbV1alpha1, err = dbv1alpha1.NewForConfig(&configShallowCopy)
+	cs.postgresdbV1alpha1, err = postgresdbv1alpha1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +70,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
-	cs.dbV1alpha1 = dbv1alpha1.NewForConfigOrDie(c)
+	cs.postgresdbV1alpha1 = postgresdbv1alpha1.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -90,7 +79,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.dbV1alpha1 = dbv1alpha1.New(c)
+	cs.postgresdbV1alpha1 = postgresdbv1alpha1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

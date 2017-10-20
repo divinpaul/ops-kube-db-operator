@@ -1,24 +1,13 @@
 /*
-Copyright 2017 The Kubernetes Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+MYOB 2017
+All Rights Reserved
 */
 package fake
 
 import (
 	clientset "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
-	dbv1alpha1 "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned/typed/db/v1alpha1"
-	fakedbv1alpha1 "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned/typed/db/v1alpha1/fake"
+	postgresdbv1alpha1 "github.com/myob-technology/ops-kube-db-operator/pkg/client/clientset/versioned/typed/postgresdb/v1alpha1"
+	fakepostgresdbv1alpha1 "github.com/myob-technology/ops-kube-db-operator/pkg/client/clientset/versioned/typed/postgresdb/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -59,12 +48,12 @@ func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 
 var _ clientset.Interface = &Clientset{}
 
-// DbV1alpha1 retrieves the DbV1alpha1Client
-func (c *Clientset) DbV1alpha1() dbv1alpha1.DbV1alpha1Interface {
-	return &fakedbv1alpha1.FakeDbV1alpha1{Fake: &c.Fake}
+// PostgresdbV1alpha1 retrieves the PostgresdbV1alpha1Client
+func (c *Clientset) PostgresdbV1alpha1() postgresdbv1alpha1.PostgresdbV1alpha1Interface {
+	return &fakepostgresdbv1alpha1.FakePostgresdbV1alpha1{Fake: &c.Fake}
 }
 
-// Db retrieves the DbV1alpha1Client
-func (c *Clientset) Db() dbv1alpha1.DbV1alpha1Interface {
-	return &fakedbv1alpha1.FakeDbV1alpha1{Fake: &c.Fake}
+// Postgresdb retrieves the PostgresdbV1alpha1Client
+func (c *Clientset) Postgresdb() postgresdbv1alpha1.PostgresdbV1alpha1Interface {
+	return &fakepostgresdbv1alpha1.FakePostgresdbV1alpha1{Fake: &c.Fake}
 }

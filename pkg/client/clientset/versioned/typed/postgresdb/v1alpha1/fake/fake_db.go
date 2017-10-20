@@ -1,22 +1,11 @@
 /*
-Copyright 2017 The Kubernetes Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+MYOB 2017
+All Rights Reserved
 */
 package fake
 
 import (
-	v1alpha1 "github.com/MYOB-Technology/ops-kube-db-operator/pkg/apis/db/v1alpha1"
+	v1alpha1 "github.com/MYOB-Technology/ops-kube-db-operator/pkg/apis/postgresdb/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -27,13 +16,13 @@ import (
 
 // FakeDBs implements DBInterface
 type FakeDBs struct {
-	Fake *FakeDbV1alpha1
+	Fake *FakePostgresdbV1alpha1
 	ns   string
 }
 
-var dbsResource = schema.GroupVersionResource{Group: "db", Version: "v1alpha1", Resource: "dbs"}
+var dbsResource = schema.GroupVersionResource{Group: "postgresdb", Version: "v1alpha1", Resource: "dbs"}
 
-var dbsKind = schema.GroupVersionKind{Group: "db", Version: "v1alpha1", Kind: "DB"}
+var dbsKind = schema.GroupVersionKind{Group: "postgresdb", Version: "v1alpha1", Kind: "DB"}
 
 // Get takes name of the dB, and returns the corresponding dB object, and an error if there is any.
 func (c *FakeDBs) Get(name string, options v1.GetOptions) (result *v1alpha1.DB, err error) {
