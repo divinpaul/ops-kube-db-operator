@@ -5,7 +5,7 @@ All Rights Reserved
 package fake
 
 import (
-	postgresdbv1alpha1 "github.com/myob-technology/ops-kube-db-operator/pkg/apis/postgresdb/v1alpha1"
+	postgresdbv1alpha1 "github.com/MYOB-Technology/ops-kube-db-operator/pkg/apis/postgresdb/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

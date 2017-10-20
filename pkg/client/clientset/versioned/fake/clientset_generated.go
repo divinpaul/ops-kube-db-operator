@@ -6,8 +6,8 @@ package fake
 
 import (
 	clientset "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
-	postgresdbv1alpha1 "github.com/myob-technology/ops-kube-db-operator/pkg/client/clientset/versioned/typed/postgresdb/v1alpha1"
-	fakepostgresdbv1alpha1 "github.com/myob-technology/ops-kube-db-operator/pkg/client/clientset/versioned/typed/postgresdb/v1alpha1/fake"
+	postgresdbv1alpha1 "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned/typed/postgresdb/v1alpha1"
+	fakepostgresdbv1alpha1 "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned/typed/postgresdb/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
