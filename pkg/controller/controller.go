@@ -47,7 +47,7 @@ type RDSController struct {
 	queue workqueue.RateLimitingInterface
 
 	// dbLister is the cache of DBs used for lookup
-	lister dbLister.DBLister
+	lister dbLister.PostgresDBLister
 	// dbSynced is the indicator of wether the cache is synced
 	synced cache.InformerSynced
 
@@ -66,7 +66,7 @@ func New(
 	dbConfig *DBInstanceConfig,
 ) *RDSController {
 
-	informer := dbInformer.Db().V1alpha1().DBs()
+	informer := dbInformer.Postgresdb().V1alpha1().PostgresDBs()
 
 	c := &RDSController{
 		client:   client,
@@ -192,17 +192,19 @@ func (c *RDSController) enqueue(obj interface{}) {
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("error obtaining key for enqueued object: %v", err))
 	}
+	log.Printf("Enqueueing: %s", key)
 	c.queue.Add(key)
 }
 
 func (c *RDSController) processDB(key string) error {
+	log.Printf("Processing DB: %s", key)
 	// get resource name and namespace out of key
 	ns, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return fmt.Errorf("error splitting namespace/key from obj %s: %v", key, err)
 	}
 
-	db, err := c.lister.DBs(ns).Get(name)
+	db, err := c.lister.PostgresDBs(ns).Get(name)
 	if err != nil {
 		log.Printf("failed to retrieve up to date db resource %s, it has most likely been deleted: %v", key, err)
 		return nil
@@ -211,7 +213,7 @@ func (c *RDSController) processDB(key string) error {
 
 	// deep copy to not change the cache
 	newDbInterface, _ := scheme.Scheme.DeepCopy(db)
-	newDb := newDbInterface.(*v1alpha1.DB)
+	newDb := newDbInterface.(*v1alpha1.PostgresDB)
 
 	// create the db now
 	newObj, err := createDb(c.rds, c.dbConfig, newDb)
@@ -220,7 +222,7 @@ func (c *RDSController) processDB(key string) error {
 		return fmt.Errorf("failed creating db %s: requeuing - %v", key, err)
 	}
 	// update the db information
-	_, err = c.dbClient.Db().DBs(ns).Update(newObj)
+	_, err = c.dbClient.Postgresdb().PostgresDBs(ns).Update(newObj)
 	if err != nil {
 		return fmt.Errorf("failed to update db %s: %v", key, err)
 	}
@@ -229,7 +231,7 @@ func (c *RDSController) processDB(key string) error {
 	return nil
 }
 
-func createDb(rds *db.Manager, dbConfig *DBInstanceConfig, resource *v1alpha1.DB) (*v1alpha1.DB, error) {
+func createDb(rds *db.Manager, dbConfig *DBInstanceConfig, resource *v1alpha1.PostgresDB) (*v1alpha1.PostgresDB, error) {
 
 	name := fmt.Sprintf("kubes-%s-%s", resource.Spec.Name, resource.GetUID())
 	username := rds.GenerateRandomUsername(16)
@@ -266,25 +268,25 @@ func createDb(rds *db.Manager, dbConfig *DBInstanceConfig, resource *v1alpha1.DB
 		input.KMSKeyArn = &dbConfig.EncryptionKey
 	}
 
-	var instance *db.DB
-	var err error
+	// var instance *db.DB
+	// var err error
 	if resource.Status.ARN == "" {
 		// need to create a new db
 		log.Printf("Creating DB with ID: %s", name)
 		log.Printf("Creating DB with master credentials: %s %s", username, password)
-		instance, err = rds.Create(input)
-		if err != nil {
-			return nil, err
-		}
-		resource.Status.ARN = *instance.ARN
+		// instance, err = rds.Create(input)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// resource.Status.ARN = *instance.ARN
 	} else {
 		// need to update the status
-		instance, err = rds.Stat(name)
-		if err != nil {
-			return nil, err
-		}
+		// instance, err = rds.Stat(name)
+		// if err != nil {
+		// 	return nil, err
+		// }
 	}
 
-	resource.Status.Ready = *instance.Status
+	// resource.Status.Ready = *instance.Status
 	return resource, nil
 }

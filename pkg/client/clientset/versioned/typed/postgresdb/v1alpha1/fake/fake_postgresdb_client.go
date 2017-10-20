@@ -14,8 +14,8 @@ type FakePostgresdbV1alpha1 struct {
 	*testing.Fake
 }
 
-func (c *FakePostgresdbV1alpha1) DBs(namespace string) v1alpha1.DBInterface {
-	return &FakeDBs{c, namespace}
+func (c *FakePostgresdbV1alpha1) PostgresDBs(namespace string) v1alpha1.PostgresDBInterface {
+	return &FakePostgresDBs{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

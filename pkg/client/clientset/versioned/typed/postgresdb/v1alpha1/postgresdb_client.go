@@ -13,7 +13,7 @@ import (
 
 type PostgresdbV1alpha1Interface interface {
 	RESTClient() rest.Interface
-	DBsGetter
+	PostgresDBsGetter
 }
 
 // PostgresdbV1alpha1Client is used to interact with features provided by the postgresdb group.
@@ -21,8 +21,8 @@ type PostgresdbV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *PostgresdbV1alpha1Client) DBs(namespace string) DBInterface {
-	return newDBs(c, namespace)
+func (c *PostgresdbV1alpha1Client) PostgresDBs(namespace string) PostgresDBInterface {
+	return newPostgresDBs(c, namespace)
 }
 
 // NewForConfig creates a new PostgresdbV1alpha1Client for the given config.

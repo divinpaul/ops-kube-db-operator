@@ -7,10 +7,10 @@ All Rights Reserved
 
 package v1alpha1
 
-// DBListerExpansion allows custom methods to be added to
-// DBLister.
-type DBListerExpansion interface{}
+// PostgresDBListerExpansion allows custom methods to be added to
+// PostgresDBLister.
+type PostgresDBListerExpansion interface{}
 
-// DBNamespaceListerExpansion allows custom methods to be added to
-// DBNamespaceLister.
-type DBNamespaceListerExpansion interface{}
+// PostgresDBNamespaceListerExpansion allows custom methods to be added to
+// PostgresDBNamespaceLister.
+type PostgresDBNamespaceListerExpansion interface{}

@@ -4,4 +4,4 @@ All Rights Reserved
 */
 package v1alpha1
 
-type DBExpansion interface{}
+type PostgresDBExpansion interface{}

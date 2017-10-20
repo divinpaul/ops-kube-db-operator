@@ -13,8 +13,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// DBs returns a DBInformer.
-	DBs() DBInformer
+	// PostgresDBs returns a PostgresDBInformer.
+	PostgresDBs() PostgresDBInformer
 }
 
 type version struct {
@@ -26,7 +26,7 @@ func New(f internalinterfaces.SharedInformerFactory) Interface {
 	return &version{f}
 }
 
-// DBs returns a DBInformer.
-func (v *version) DBs() DBInformer {
-	return &dBInformer{factory: v.SharedInformerFactory}
+// PostgresDBs returns a PostgresDBInformer.
+func (v *version) PostgresDBs() PostgresDBInformer {
+	return &postgresDBInformer{factory: v.SharedInformerFactory}
 }

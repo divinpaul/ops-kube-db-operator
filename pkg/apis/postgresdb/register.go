@@ -1,4 +1,4 @@
-package db
+package postgresdb
 
 const (
 	// GroupName for the CRD

@@ -19,44 +19,44 @@ import (
 	time "time"
 )
 
-// DBInformer provides access to a shared informer and lister for
-// DBs.
-type DBInformer interface {
+// PostgresDBInformer provides access to a shared informer and lister for
+// PostgresDBs.
+type PostgresDBInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.DBLister
+	Lister() v1alpha1.PostgresDBLister
 }
 
-type dBInformer struct {
+type postgresDBInformer struct {
 	factory internalinterfaces.SharedInformerFactory
 }
 
-// NewDBInformer constructs a new informer for DB type.
+// NewPostgresDBInformer constructs a new informer for PostgresDB type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewDBInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+func NewPostgresDBInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
-				return client.PostgresdbV1alpha1().DBs(namespace).List(options)
+				return client.PostgresdbV1alpha1().PostgresDBs(namespace).List(options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
-				return client.PostgresdbV1alpha1().DBs(namespace).Watch(options)
+				return client.PostgresdbV1alpha1().PostgresDBs(namespace).Watch(options)
 			},
 		},
-		&postgresdb_v1alpha1.DB{},
+		&postgresdb_v1alpha1.PostgresDB{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func defaultDBInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewDBInformer(client, v1.NamespaceAll, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+func defaultPostgresDBInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewPostgresDBInformer(client, v1.NamespaceAll, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 }
 
-func (f *dBInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&postgresdb_v1alpha1.DB{}, defaultDBInformer)
+func (f *postgresDBInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&postgresdb_v1alpha1.PostgresDB{}, defaultPostgresDBInformer)
 }
 
-func (f *dBInformer) Lister() v1alpha1.DBLister {
-	return v1alpha1.NewDBLister(f.Informer().GetIndexer())
+func (f *postgresDBInformer) Lister() v1alpha1.PostgresDBLister {
+	return v1alpha1.NewPostgresDBLister(f.Informer().GetIndexer())
 }

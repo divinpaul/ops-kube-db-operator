@@ -1,8 +1,8 @@
-hash: 274a8abfaf1f9b0ba3d906ce230f61a67dd54e6b007f66a9d61ed1d2adf47bed
-updated: 2017-10-19T10:53:00.746619456+11:00
+hash: 4f9b90ccb63ced68a1afb3df208f0b329387c7e50aad445d436b4904276e6395
+updated: 2017-10-20T11:51:50.438026403+11:00
 imports:
 - name: github.com/aws/aws-sdk-go
-  version: 49c3892b61af1d4996292a3025f36e4dfa25eaee
+  version: 1e7792b681d9bc32eff919999321b2589e891688
   subpackages:
   - aws
   - aws/awserr
@@ -12,20 +12,23 @@ imports:
   - aws/corehandlers
   - aws/credentials
   - aws/credentials/ec2rolecreds
+  - aws/credentials/endpointcreds
+  - aws/credentials/stscreds
   - aws/defaults
   - aws/ec2metadata
+  - aws/endpoints
   - aws/request
   - aws/session
-  - private/endpoints
+  - aws/signer/v4
+  - internal/shareddefaults
   - private/protocol
   - private/protocol/query
   - private/protocol/query/queryutil
   - private/protocol/rest
   - private/protocol/xml/xmlutil
-  - private/signer/v4
-  - private/waiter
   - service/rds
   - service/rds/rdsiface
+  - service/sts
 - name: github.com/davecgh/go-spew
   version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
   subpackages:
@@ -85,7 +88,7 @@ imports:
   - jlexer
   - jwriter
 - name: github.com/MYOB-Technology/dataform
-  version: 8b067739d1e96e724d14026aa63ba2b36be2d84c
+  version: a959facbbc5788c2f89b65e6d4209fbb84dab765
   subpackages:
   - pkg/db
   - pkg/service

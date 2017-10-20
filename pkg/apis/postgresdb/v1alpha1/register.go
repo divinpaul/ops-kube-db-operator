@@ -9,7 +9,7 @@ import (
 
 var (
 	// SchemeGroupVersion is group version used to register the objects
-	SchemeGroupVersion = schema.GroupVersion{Group: db.GroupName, Version: "v1alpha1"}
+	SchemeGroupVersion = schema.GroupVersion{Group: postgresdb.GroupName, Version: "v1alpha1"}
 	// SchemeBuilder is something
 	SchemeBuilder      runtime.SchemeBuilder
 	localSchemeBuilder = &SchemeBuilder
@@ -27,7 +27,7 @@ func init() {
 }
 
 func addKnownTypes(scheme *runtime.Scheme) error {
-	scheme.AddKnownTypes(SchemeGroupVersion, &DB{})
+	scheme.AddKnownTypes(SchemeGroupVersion, &PostgresDB{})
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
 }
