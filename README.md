@@ -1,6 +1,8 @@
-# rds-operator
+# Kubernetes RDS Operator
 
-Operator to control RDS DBs in amazon
+[![Build status](https://badge.buildkite.com/e7c13388bb3657b571037c100c3c607604002ff4ab6e69df2c.svg?branch=master)](https://buildkite.com/myob/ops-kube-db-operator)
+
+Operator to control RDS DBs in AWS, uses Config Maps for dafault configuration and Secrets for DB parameters.
 
 ## Installation
 
@@ -11,21 +13,23 @@ glide install
 ## Running from source
 
 * Set required AWS config in the configmap
-```
+
+```bash
  kubectl apply -f yaml/config-map.yaml
 ```
 
 * authenticate to kubes
-* authenticate to AWS 
+* authenticate to AWS
 * run it locally
+
 ```bash
 go run *.go -kubeconfig ~/.kube/config
 ```
 
 ## Auto Generating Client with Kubernetes code-generator
 
-- Make sure to `go get -d k8s.io/code-generator`
-- If that is failing, try to get it from github.com/sttts/code-generator
+* Make sure to `go get -d k8s.io/code-generator`
+* If that is failing, try to get it from github.com/sttts/code-generator
 
 ```bash
 ❯ cd $GOPATH/src/k8s.io/code-generator
