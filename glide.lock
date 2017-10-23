@@ -1,8 +1,8 @@
-hash: 4f9b90ccb63ced68a1afb3df208f0b329387c7e50aad445d436b4904276e6395
-updated: 2017-10-20T11:51:50.438026403+11:00
+hash: 6863154b459987dafff12fc64615d411d3ac9a7143d9360ae3181b73ac3cbd9b
+updated: 2017-10-23T15:07:37.352747462+11:00
 imports:
 - name: github.com/aws/aws-sdk-go
-  version: 1e7792b681d9bc32eff919999321b2589e891688
+  version: 0b712b483e38c7e1efe9c3e0249de0a8f131cb4e
   subpackages:
   - aws
   - aws/awserr
@@ -47,7 +47,7 @@ imports:
 - name: github.com/ghodss/yaml
   version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
 - name: github.com/go-ini/ini
-  version: afbd495e5aaea13597b5e14fe514ddeaa4d76fc3
+  version: 5b3e00af70a9484542169a976dcab8d03e601a17
 - name: github.com/go-openapi/analysis
   version: b44dc874b601d9e4e2f6e19140e794ba24bead3b
 - name: github.com/go-openapi/jsonpointer
@@ -88,7 +88,7 @@ imports:
   - jlexer
   - jwriter
 - name: github.com/MYOB-Technology/dataform
-  version: a959facbbc5788c2f89b65e6d4209fbb84dab765
+  version: 6b623b97d2f66efd0d49eb02fd2daa270d39ce69
   subpackages:
   - pkg/db
   - pkg/service
