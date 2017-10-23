@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ops-kube-db-operator
+  namespace: kube-system
+data:
+  aws.security.group.id: sg-2610f740
+  aws.subnet.group.name: test-rds-dataform
+  aws.kms.key.arn: arn:aws:kms:ap-southeast-2:693429498512:key/62b05a23-2f82-467f-b61e-0e55531a3540
+  aws.rds.postgres.default.port: "5432"
+  aws.rds.postgres.default.multiaz: "true"
+  aws.rds.postgres.default.kms.encryption: "true"
+  aws.rds.postgres.default.instance.class: db2.t2.small
+  aws.rds.postgres.default.backup.window: "14:00-15:00"
+  aws.rds.postgres.default.maintenance.window: Sun:23:45-Mon:00:15
+  aws.rds.postgres.default.storage.type: gp2
+  aws.rds.postgres.default.storage.size: "5"

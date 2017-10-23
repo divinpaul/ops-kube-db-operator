@@ -1,0 +1,10 @@
+apiVersion: myob.com/v1alpha1
+kind: PostgresDB
+metadata:
+  name: example-iops-db
+spec:
+    name: "example-iops-app"
+    size: "db.t2.small"
+    gigabytes: "100"
+    iops: "1000"
+

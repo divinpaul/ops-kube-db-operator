@@ -55,13 +55,11 @@ func main() {
 	// dbInformerFactory acts like a cache for db resources like above
 	dbInformerFactory := dbInformer.NewSharedInformerFactory(dbClient, 10*time.Minute)
 
-	dbConfig, err := controller.NewDBInstanceConfig()
-	if err != nil {
-		log.Fatalf("%v", err)
-	}
-
 	// this controller will deal with RDS dbs
-	rdsController := controller.New(client, dbClient, dbInformerFactory, dbConfig)
+	rdsController, err := controller.New(client, dbClient, dbInformerFactory)
+	if err != nil {
+		log.Fatalf("error creating db controller: %v", err)
+	}
 
 	// start go routines with our informers
 	go dbInformerFactory.Start(nil)

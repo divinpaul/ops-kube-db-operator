@@ -3,6 +3,6 @@ kind: PostgresDB
 metadata:
   name: example-db
 spec:
-    name: "appname"
+    name: "example-app-db"
     size: "db.t2.small"
-
+    gigabytes: "10"

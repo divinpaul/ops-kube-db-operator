@@ -17,16 +17,11 @@ type PostgresDB struct {
 
 // PostgresDBSpec is the spec for a DB resource
 type PostgresDBSpec struct {
-	Type string `json:"type"`
-	Name string `json:"name"`
-	Size string `json:"size,omitempty"`
-	//	Port          int64  `json:"port,omitempty"`
-	//	Subnet        string `json:"subnet"`
-	//	SecurityGroup string `json:"securityGroup"`
-	Multizone bool `json:"multizone,omitempty"`
-	//	Username      string `json:"username,omitempty"`
-	//	Password      string `json:"password,omitempty"`
-	//	EncryptionKey string `json:"encryptionKey,omitempty"`
+	Type      string `json:"type"`
+	Name      string `json:"name"`
+	Size      string `json:"size,omitempty"`
+	GigaBytes int64  `json:"gigabytes,omitempty"`
+	Iops      int64  `json:"iops,omitempty"`
 }
 
 // PostgresDBStatus is the status for a DB resource
