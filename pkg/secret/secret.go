@@ -1,7 +1,7 @@
 package secret
 
 import (
-	"log"
+	log "github.com/sirupsen/logrus"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,7 +43,7 @@ func New(client *kubernetes.Clientset, namespace string, name string) *Secret {
 			s.exists = false
 		} else {
 			// something is borked
-			log.Printf("Error while getting secret %s/%s: %v", namespace, name, err)
+			log.Infof("Error while getting secret %s/%s: %v", namespace, name, err)
 		}
 	}
 
@@ -54,18 +54,18 @@ func New(client *kubernetes.Clientset, namespace string, name string) *Secret {
 func (s *Secret) Save() (err error) {
 	var obj *apiv1.Secret
 	if s.exists {
-		log.Printf("Updating secret %s/%s", s.ns, s.obj.ObjectMeta.Name)
+		log.Infof("Updating secret %s/%s", s.ns, s.obj.ObjectMeta.Name)
 		obj, err = s.client.Secrets(s.ns).Update(s.obj)
 	} else {
-		log.Printf("Creating secret %s/%s", s.ns, s.obj.ObjectMeta.Name)
+		log.Infof("Creating secret %s/%s", s.ns, s.obj.ObjectMeta.Name)
 		obj, err = s.client.Secrets(s.ns).Create(s.obj)
 	}
 	if err != nil {
-		log.Printf("Error saving secret %s/%s: %v", s.ns, s.obj.ObjectMeta.Name, err)
+		log.Errorf("Error saving secret %s/%s: %v", s.ns, s.obj.ObjectMeta.Name, err)
 		return
 	}
 
-	log.Printf("Saved secret %s/%s", s.ns, s.obj.ObjectMeta.Name)
+	log.Infof("Saved secret %s/%s", s.ns, s.obj.ObjectMeta.Name)
 	s.obj = obj
 	return
 }

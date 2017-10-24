@@ -2,9 +2,11 @@ package main
 
 import (
 	"flag"
-	"log"
 	"os"
+	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -19,7 +21,18 @@ import (
 var version = "snapshot"
 
 func main() {
-	log.Printf("rds-controller version: %v", version)
+	loglevel := strings.ToLower(os.Getenv("LOG_LEVEL"))
+	if loglevel == "debug" {
+		log.SetLevel(log.DebugLevel)
+	} else if loglevel == "warn" {
+		log.SetLevel(log.WarnLevel)
+	} else if loglevel == "error" {
+		log.SetLevel(log.ErrorLevel)
+	} else {
+		log.SetLevel(log.InfoLevel)
+	}
+
+	log.Infof("rds-controller version: %v", version)
 
 	// read kube config file from flag
 	var kubeconfig string
@@ -35,10 +48,10 @@ func main() {
 	var err error
 	// if flag has not been passed and env not set, presume running in cluster
 	if kubeconfig != "" {
-		log.Printf("using kubeconfig %v", kubeconfig)
+		log.Infof("using kubeconfig %v", kubeconfig)
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 	} else {
-		log.Printf("running inside cluster")
+		log.Infof("running inside cluster")
 		config, err = rest.InClusterConfig()
 	}
 

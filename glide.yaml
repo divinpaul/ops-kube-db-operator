@@ -6,6 +6,8 @@ import:
   - rest
   - tools/clientcmd
 - package: github.com/aws/aws-sdk-go
-  version: "~1.12.13"
+  version: ~1.12.13
 - package: github.com/MYOB-Technology/dataform
-  version: "~0.1.10"
+  version: ~0.1.10
+- package: github.com/sirupsen/logrus
+  version: ^1.0.3

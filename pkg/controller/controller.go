@@ -2,10 +2,11 @@ package controller
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 	"strconv"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"k8s.io/apimachinery/pkg/util/wait"
 
@@ -73,7 +74,7 @@ func New(
 		dbConfig: dbConfig,
 	}
 
-	log.Print("Setting up event handlers")
+	log.Info("Setting up event handlers")
 	informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: c.enqueue,
 		UpdateFunc: func(old, new interface{}) {
@@ -203,13 +204,13 @@ func (c *RDSController) Run(threadiness int, stopChan <-chan struct{}) error {
 	// shutdown the queue when done
 	defer c.queue.ShutDown()
 
-	log.Print("Starting RDS Controller")
+	log.Info("Starting RDS Controller")
 
-	log.Print("waiting for cache to sync")
+	log.Info("waiting for cache to sync")
 	if !cache.WaitForCacheSync(stopChan, c.synced) {
 		return fmt.Errorf("timeout waiting for sync")
 	}
-	log.Print("caches synced successfully")
+	log.Info("caches synced successfully")
 
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(c.runWorker, time.Second, stopChan)
@@ -257,13 +258,13 @@ func (c *RDSController) enqueue(obj interface{}) {
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("error obtaining key for enqueued object: %v", err))
 	}
-	log.Printf("Enqueueing: %s", key)
+	log.Infof("Enqueueing: %s", key)
 	c.queue.Add(key)
 }
 
 func (c *RDSController) processDB(key string) error {
 
-	log.Printf("Processing DB: %s", key)
+	log.Infof("Processing: %s", key)
 	// get resource name and namespace out of key
 	ns, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -272,10 +273,9 @@ func (c *RDSController) processDB(key string) error {
 
 	db, err := c.lister.PostgresDBs(ns).Get(name)
 	if err != nil {
-		log.Printf("failed to retrieve up to date db resource %s, it has most likely been deleted: %v", key, err)
+		log.Warnf("failed to retrieve up to date db resource %s, it has most likely been deleted: %v", key, err)
 		return nil
 	}
-	log.Printf("Processing %s: %v", key, db.Spec.Type)
 
 	// deep copy to not change the cache
 	newDbInterface, _ := scheme.Scheme.DeepCopy(db)
@@ -288,11 +288,11 @@ func (c *RDSController) processDB(key string) error {
 	// list the db and get status
 	instance, err := c.rds.Stat(instanceID)
 	if err != nil {
-		log.Printf("Instance not found %s: %v", key, err)
+		log.Infof("Instance not found %s: %v", key, err)
 		//  TODO test for instance not found error
 		//		return fmt.Errorf("failed querying db %s: requeuing - %v", instanceId, err)
 	} else {
-		log.Printf("Instance found %s: %s", key, *instance.ARN)
+		log.Infof("Instance found %s: %s", key, *instance.ARN)
 	}
 
 	// otherwise create the db now
@@ -308,7 +308,7 @@ func (c *RDSController) processDB(key string) error {
 		return fmt.Errorf("failed to update db %s: %v", key, err)
 	}
 
-	log.Printf("Finished updating %s", key)
+	log.Infof("Finished updating %s", key)
 	return nil
 }
 
@@ -374,8 +374,8 @@ func (c *RDSController) createDb(dbConfig *db.DB, resource *v1alpha1.PostgresDB)
 
 		// need to create a new db
 		input := c.configureDB(dbConfig, resource)
-		log.Printf("Creating DB with ID: %s", *input.Name)
-		log.Printf("Creating DB with master credentials: %s %s", *input.MasterUsername, *input.MasterUserPassword)
+		log.Infof("Creating DB with ID: %s", *input.Name)
+		log.Infof("Creating DB with master credentials: %s %s", *input.MasterUsername, *input.MasterUserPassword)
 		instance, err := c.rds.Create(input)
 		if err != nil {
 			return nil, err
