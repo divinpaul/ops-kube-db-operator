@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/kr/pretty"
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"k8s.io/client-go/kubernetes/scheme"
@@ -22,6 +21,7 @@ import (
 	dbClientSet "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
 	dbInformerFactory "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions"
 	dbLister "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/listers/postgresdb/v1alpha1"
+	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/secret"
 
 	"github.com/MYOB-Technology/dataform/pkg/db"
 	"github.com/MYOB-Technology/dataform/pkg/service"
@@ -30,7 +30,7 @@ import (
 // RDSController is a controller for RDS DBs.
 type RDSController struct {
 	// client is the standart kubernetes clientset
-	client kubernetes.Interface
+	client *kubernetes.Clientset
 
 	// dbClient is the client for the DB crd
 	dbClient dbClientSet.Interface
@@ -233,8 +233,6 @@ func (c *RDSController) processNextWorkItem() bool {
 		return false
 	}
 
-	fmt.Printf("work item: %# v", pretty.Formatter(key))
-
 	// indicate to queue when work is finished on a specific item
 	defer c.queue.Done(key)
 
@@ -277,8 +275,7 @@ func (c *RDSController) processDB(key string) error {
 		log.Printf("failed to retrieve up to date db resource %s, it has most likely been deleted: %v", key, err)
 		return nil
 	}
-	log.Printf("%s: %v", key, db.Spec.Type)
-	fmt.Printf("db: %# v", pretty.Formatter(db))
+	log.Printf("Processing %s: %v", key, db.Spec.Type)
 
 	// deep copy to not change the cache
 	newDbInterface, _ := scheme.Scheme.DeepCopy(db)
@@ -291,12 +288,12 @@ func (c *RDSController) processDB(key string) error {
 	// list the db and get status
 	instance, err := c.rds.Stat(instanceID)
 	if err != nil {
-		fmt.Printf("%s: %s\n", name, err)
+		log.Printf("Instance not found %s: %v", key, err)
 		//  TODO test for instance not found error
 		//		return fmt.Errorf("failed querying db %s: requeuing - %v", instanceId, err)
+	} else {
+		log.Printf("Instance found %s: %s", key, *instance.ARN)
 	}
-
-	fmt.Printf("instance: %# v", pretty.Formatter(instance))
 
 	// otherwise create the db now
 	newObj, err := c.createDb(c.dbConfig, newDb)
@@ -317,9 +314,14 @@ func (c *RDSController) processDB(key string) error {
 
 func (c *RDSController) configureDB(dbConfig *db.DB, resource *v1alpha1.PostgresDB) *db.DB {
 
-	// TODO - store in a secret
 	username := c.rds.GenerateRandomUsername(16)
 	password := c.rds.GenerateRandomPassword(32)
+
+	// create secret with some info
+	defer func() {
+		newSec := secret.New(c.client, resource.Namespace, resource.Spec.Name).SetData(username, password)
+		newSec.Save()
+	}()
 
 	tags := make([]*db.Tag, 0, 5)
 	nskey := "Namespace"
