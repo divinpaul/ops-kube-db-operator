@@ -17,17 +17,16 @@ type PostgresDB struct {
 
 // PostgresDBSpec is the spec for a DB resource
 type PostgresDBSpec struct {
-	Type      string `json:"type"`
-	Name      string `json:"name"`
-	Size      string `json:"size,omitempty"`
-	GigaBytes int64  `json:"gigabytes,omitempty"`
-	Iops      int64  `json:"iops,omitempty"`
+	Size    string `json:"size,omitempty"`
+	Storage int64  `json:"storage,omitempty"`
+	Iops    int64  `json:"iops,omitempty"`
 }
 
 // PostgresDBStatus is the status for a DB resource
 type PostgresDBStatus struct {
 	Ready string `json:"ready"`
 	ARN   string `json:"arn"`
+	//	Endpoint string `json:"endpoint"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

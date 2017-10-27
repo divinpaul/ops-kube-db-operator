@@ -1,8 +1,8 @@
-hash: 8e637e892b87b7eaebb26ef05a7a58e239507541005279aa1a33840f9d1ba8d4
-updated: 2017-10-24T14:55:09.213315253+11:00
+hash: fd67e22db7b06937505b2903bf8d7fd8fa88b70df3fac151465b5851726c3da3
+updated: 2017-10-27T09:28:04.946378985+11:00
 imports:
 - name: github.com/aws/aws-sdk-go
-  version: 209e63d002840d9ed94159e6639216a53b7cc28b
+  version: e9f2a40fef17e4fc6a192dad77ce3b10fcde5caf
   subpackages:
   - aws
   - aws/awserr
@@ -145,7 +145,6 @@ imports:
   - pkg/api/errors
   - pkg/api/meta
   - pkg/api/resource
-  - pkg/api/testing
   - pkg/apimachinery
   - pkg/apimachinery/announced
   - pkg/apimachinery/registered
@@ -173,25 +172,18 @@ imports:
   - pkg/util/diff
   - pkg/util/errors
   - pkg/util/framer
-  - pkg/util/httpstream
-  - pkg/util/httpstream/spdy
   - pkg/util/intstr
   - pkg/util/json
-  - pkg/util/mergepatch
   - pkg/util/net
   - pkg/util/rand
-  - pkg/util/remotecommand
   - pkg/util/runtime
   - pkg/util/sets
-  - pkg/util/strategicpatch
   - pkg/util/validation
   - pkg/util/validation/field
   - pkg/util/wait
   - pkg/util/yaml
   - pkg/version
   - pkg/watch
-  - third_party/forked/golang/json
-  - third_party/forked/golang/netutil
   - third_party/forked/golang/reflect
 - name: k8s.io/client-go
   version: d92e8497f71b7b4e0494e5bd204b48d34bd6f254
