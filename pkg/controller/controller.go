@@ -64,7 +64,7 @@ func New(
 		pgmgr:    pgmgr,
 	}
 
-	log.Info("Setting up event handlers")
+	log.Info("setting up event handlers")
 	informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: c.enqueue,
 		UpdateFunc: func(old, new interface{}) {
@@ -86,7 +86,7 @@ func (p *PgController) Run(threadiness int, stopChan <-chan struct{}) error {
 	// shutdown the queue when done
 	defer p.queue.ShutDown()
 
-	log.Info("Starting Pg Controller")
+	log.Info("starting PgController")
 
 	log.Info("waiting for cache to sync")
 	if !cache.WaitForCacheSync(stopChan, p.synced) {
@@ -141,6 +141,6 @@ func (p *PgController) enqueue(obj interface{}) {
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("error obtaining key for enqueued object: %v", err))
 	}
-	log.Infof("Enqueueing: %s", key)
+	log.Infof("enqueueing: %s", key)
 	p.queue.Add(key)
 }

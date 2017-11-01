@@ -43,7 +43,7 @@ func New(client *kubernetes.Clientset, namespace string, name string) *Secret {
 			s.exists = false
 		} else {
 			// something is borked
-			log.Infof("Error while getting secret %s/%s: %v", namespace, name, err)
+			log.Infof("error while getting secret %s/%s: %v", namespace, name, err)
 		}
 	}
 
@@ -54,27 +54,27 @@ func New(client *kubernetes.Clientset, namespace string, name string) *Secret {
 func (s *Secret) Save() (err error) {
 	var obj *apiv1.Secret
 	if s.exists {
-		log.Infof("Updating secret %s/%s", s.ns, s.obj.ObjectMeta.Name)
+		log.Infof("updating secret %s/%s", s.ns, s.obj.ObjectMeta.Name)
 		obj, err = s.client.Secrets(s.ns).Update(s.obj)
 	} else {
-		log.Infof("Creating secret %s/%s", s.ns, s.obj.ObjectMeta.Name)
+		log.Infof("creating secret %s/%s", s.ns, s.obj.ObjectMeta.Name)
 		obj, err = s.client.Secrets(s.ns).Create(s.obj)
 	}
 	if err != nil {
-		log.Errorf("Error saving secret %s/%s: %v", s.ns, s.obj.ObjectMeta.Name, err)
+		log.Errorf("error saving secret %s/%s: %v", s.ns, s.obj.ObjectMeta.Name, err)
 		return
 	}
 
-	log.Infof("Saved secret %s/%s", s.ns, s.obj.ObjectMeta.Name)
+	log.Infof("saved secret %s/%s", s.ns, s.obj.ObjectMeta.Name)
 	s.obj = obj
 	return
 }
 
 // SetData overwrites the contents of a secret
-func (s *Secret) SetData(username, password string) *Secret {
-	s.obj.StringData = map[string]string{
-		"username": username,
-		"password": password,
+func (s *Secret) SetData(data map[string]string) *Secret {
+	s.obj.StringData = map[string]string{}
+	for k, v := range data {
+		s.obj.StringData[k] = v
 	}
 	return s
 }

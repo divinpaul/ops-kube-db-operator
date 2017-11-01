@@ -58,7 +58,9 @@ func (p *Manager) Sync(key string) error {
 
 	resource, err := p.lister.PostgresDBs(ns).Get(name)
 	if err != nil {
-		return fmt.Errorf("error: sync failed to retrieve up to date db resource %s, it has most likely been deleted: %v", key, err)
+		// return fmt.Errorf("error: sync failed to retrieve up to date db resource %s, it has most likely been deleted: %v", key, err)
+		log.Warnf("error: sync failed to retrieve up to date db resource %s, it has most likely been deleted: %v", key, err)
+		return nil
 	}
 
 	// deep copy to not change the cache

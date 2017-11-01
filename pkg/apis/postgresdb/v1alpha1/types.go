@@ -26,7 +26,6 @@ type PostgresDBSpec struct {
 type PostgresDBStatus struct {
 	Ready string `json:"ready"`
 	ARN   string `json:"arn"`
-	//	Endpoint string `json:"endpoint"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

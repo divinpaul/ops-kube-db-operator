@@ -27,11 +27,14 @@ type PgDB struct {
 func (p *PgDB) Save() error {
 	var err error
 
-	if p.obj.Status.ARN == "" {
-		// TODO rds update
-		p.configureNewDB()
+	// TODO - this deleting test can be removed when a delete queue function is done
+	// if in a deleting state - we will recreate a new one
+	if p.obj.Status.ARN == "" || p.obj.Status.Ready == "deleting" {
+		err = p.configureNewDB()
+		if err != nil {
+			return err
+		}
 		log.Infof("creating DB with ID: %s", *p.db.Name)
-		log.Infof("creating DB with master credentials: %s %s", *p.db.MasterUsername, *p.db.MasterUserPassword)
 		p.db, err = p.rds.Create(p.db)
 		if err != nil {
 			return err
@@ -53,6 +56,7 @@ func (p *PgDB) Stat() error {
 	p.obj.Status.Ready = *instance.Status
 	p.obj.Status.ARN = *instance.ARN
 	p.db = instance
+	p.updateEndpoint()
 	log.Infof("stat updating postgresdb resource %s/%s", p.ns, p.obj.ObjectMeta.Name)
 	var obj *v1alpha1.PostgresDB
 	obj, err = p.dbklient.Postgresdb().PostgresDBs(p.ns).Update(p.obj)
@@ -81,15 +85,41 @@ func (p *PgDB) Delete() error {
 	return nil
 }
 
-func (p *PgDB) configureNewDB() {
+// updateEndpoint will store the endpoint as a secret when db address and port are available
+func (p *PgDB) updateEndpoint() {
+	if p.db.Address != nil && p.db.Port != nil {
+		endpoint := fmt.Sprintf("%s:%d", *p.db.Address, *p.db.Port)
+		data := map[string]string{
+			"endpoint": endpoint,
+		}
+		newSec := secret.New(p.klient, p.obj.Namespace, p.obj.Name).SetData(data)
+		err := newSec.Save()
+		if err != nil {
+			log.Errorf("error storing DB endpoint: %s, %s", p.obj.Name, err)
+			return
+		}
+		log.Infof("successfully stored DB endpoint: %s", p.obj.Name)
+	}
+}
+
+func (p *PgDB) configureNewDB() error {
 
 	username := p.rds.GenerateRandomUsername(16)
 	password := p.rds.GenerateRandomPassword(32)
 
 	// create secret with some info
-	defer func() {
-		newSec := secret.New(p.klient, p.obj.Namespace, p.obj.Name).SetData(username, password)
-		newSec.Save()
+	defer func() error {
+		data := map[string]string{
+			"username": username,
+			"password": password,
+		}
+		newSec := secret.New(p.klient, p.obj.Namespace, p.obj.Name).SetData(data)
+		err := newSec.Save()
+		if err != nil {
+			return fmt.Errorf("error storing DB master credentials for DB: %s, %s", p.obj.Name, err)
+		}
+		log.Infof("successfully stored DB master credentials: %s, %s, %s", p.obj.Name, username, password)
+		return nil
 	}()
 
 	tags := make([]*dfm.Tag, 0, 5)
@@ -125,5 +155,7 @@ func (p *PgDB) configureNewDB() {
 		dbStorageType = "io1"
 		p.db.StorageType = &dbStorageType
 	}
+
+	return nil
 
 }
