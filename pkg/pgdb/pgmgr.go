@@ -80,7 +80,7 @@ func (p *Manager) Sync(key string) error {
 func NewDBDefaults(client *kubernetes.Clientset) (*dfm.DB, error) {
 
 	cfgmaps := client.ConfigMaps("kube-system")
-	cfg, err := cfgmaps.Get("ops-kube-db-operator", metav1.GetOptions{})
+	cfg, err := cfgmaps.Get("postgresdb-controller", metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("error reading configmap: %s", err)
 	}
