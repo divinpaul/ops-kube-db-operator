@@ -33,17 +33,19 @@ type Manager struct {
 }
 
 // NewManager creates a new Manager object
-func NewManager(client *kubernetes.Clientset, dbClient clientset.Interface, lister dbLister.PostgresDBLister) (*Manager, error) {
+func NewManager(client *kubernetes.Clientset, dbClient clientset.Interface, lister dbLister.PostgresDBLister, stop chan struct{}) (*Manager, error) {
 	defaults, err := NewDBDefaults(client)
 	if err != nil {
 		return nil, err
 	}
+	dfmmgr := dfm.NewManager(dfmsvc.New(""))
+	dfmmgr.SetShutdownChannel(stop)
 	return &Manager{
 		kubeClient: client,
 		dbClient:   dbClient,
 		lister:     lister,
 		defaults:   defaults,
-		rds:        dfm.NewManager(dfmsvc.New("")),
+		rds:        dfmmgr,
 	}, nil
 }
 

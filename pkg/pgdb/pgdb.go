@@ -2,6 +2,7 @@ package pgdb
 
 import (
 	"fmt"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -10,6 +11,11 @@ import (
 	dbClientSet "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/secret"
 	"k8s.io/client-go/kubernetes"
+)
+
+const (
+	pgPollIntervalSeconds time.Duration = 60
+	pgPollTimeoutSeconds  time.Duration = 1800
 )
 
 // PgDB represents a Kubernetes PostgresDB resource
@@ -27,20 +33,40 @@ type PgDB struct {
 func (p *PgDB) Save() error {
 	var err error
 
-	// TODO - this deleting test can be removed when a delete queue function is done
-	// if in a deleting state - we will recreate a new one
-	if p.obj.Status.ARN == "" || p.obj.Status.Ready == "deleting" {
+	if p.obj.Status.ARN == "" {
 		err = p.configureNewDB()
 		if err != nil {
 			return err
 		}
 		log.Infof("creating DB with ID: %s", *p.db.Name)
-		p.db, err = p.rds.Create(p.db)
-		if err != nil {
-			return err
-		}
+		return p.Create()
 	}
 	return p.Stat()
+}
+
+func (p *PgDB) Create() error {
+	var err error
+	p.db, err = p.rds.Create(p.db)
+	if err != nil {
+		return err
+	}
+	go p.PollStatus()
+
+	return p.Stat()
+}
+
+// PollStatus polls for status of rds instance
+func (p *PgDB) PollStatus() {
+	status := p.rds.WaitForFinalState(*p.db.Name, pgPollIntervalSeconds, pgPollTimeoutSeconds)
+	for poll := range status {
+		if poll.Err != nil {
+			log.Warnf("rds instance %s transitioned to error condition: %v", *p.db.Name, poll.Err)
+			p.Stat()
+			return
+		}
+		log.Infof("poll instance %s: %s", *p.db.Name, poll.Status)
+		p.Stat()
+	}
 }
 
 // StatDB checks for existence of RDS instance  only
@@ -76,9 +102,6 @@ func (p *PgDB) Stat() error {
 		return err
 	}
 	p.obj = obj
-	if p.obj.Status.Ready != "available" {
-		return fmt.Errorf("postgresdb %s/%s is not yet available: %s", p.ns, p.obj.ObjectMeta.Name, p.obj.Status.Ready)
-	}
 	log.Infof("saved postgresdb %s/%s, status: %s", p.ns, p.obj.ObjectMeta.Name, p.obj.Status.Ready)
 	return nil
 }

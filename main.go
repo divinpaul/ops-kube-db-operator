@@ -4,7 +4,6 @@ import (
 	"flag"
 	"os"
 	"strings"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/signals"
 
 	clientset "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
-	informers "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions"
 )
 
 var version = "snapshot"
@@ -57,19 +55,13 @@ func main() {
 		log.Fatalf("error creating db client: %v", err)
 	}
 
-	// dbInformerFactory acts like a cache for db resources like above
-	dbInformerFactory := informers.NewSharedInformerFactory(dbClient, 10*time.Minute)
-
 	// this controller will deal with RDS dbs
-	rdsController, err := controller.New(kubeClient, dbClient, dbInformerFactory)
+	rdsController, err := controller.New(kubeClient, dbClient, stopCh)
 	if err != nil {
 		log.Fatalf("error creating db controller: %v", err)
 	}
 
-	// start go routines with our informers
-	go dbInformerFactory.Start(stopCh)
-
-	if err = rdsController.Run(2, stopCh); err != nil {
+	if err = rdsController.Run(2); err != nil {
 		log.Fatalf("error running controller: %v", err)
 	}
 

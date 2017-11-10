@@ -36,18 +36,22 @@ type PgController struct {
 
 	// pg is how we interact with PostgresDB objects
 	pgmgr *pgdb.Manager
+
+	// stop channel used to shutdown any required goroutines
+	stop chan struct{}
 }
 
 // New instantiates an pgController
 func New(
 	kubeClient *kubernetes.Clientset,
 	dbClient clientset.Interface,
-	dbInformer informers.SharedInformerFactory,
+	stop chan struct{},
 ) (*PgController, error) {
 
-	informer := dbInformer.Postgresdb().V1alpha1().PostgresDBs()
+	// dbInformer acts like a cache for db resources like above
+	dbInformer := informers.NewSharedInformerFactory(dbClient, 10*time.Minute)
 
-	pgmgr, err := pgdb.NewManager(kubeClient, dbClient, informer.Lister())
+	pgmgr, err := pgdb.NewManager(kubeClient, dbClient, informer.Lister(), stop)
 	if err != nil {
 		return nil, err
 	}
@@ -57,6 +61,7 @@ func New(
 		synced:     informer.Informer().HasSynced,
 		queue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DBIn"),
 		pgmgr:      pgmgr,
+		stop:       stop,
 	}
 
 	log.Info("setting up event handlers")
@@ -70,30 +75,33 @@ func New(
 		DeleteFunc: c.enqueue,
 	})
 
+	// start go routines with our informers
+	go dbInformer.Start(stop)
+
 	return c, nil
 }
 
 // Run starts the controller
-func (p *PgController) Run(threadiness int, stopChan <-chan struct{}) error {
+func (p *PgController) Run(threadiness int) error {
 	// do not allow panics to crash the controller
 	defer runtime.HandleCrash()
 	// shutdown the queue when done
 	defer p.queue.ShutDown()
 
-	log.Info("starting PgController")
+	log.Info("starting PostgresDBController")
 
 	log.Info("waiting for cache to sync")
-	if !cache.WaitForCacheSync(stopChan, p.synced) {
+	if !cache.WaitForCacheSync(p.stop, p.synced) {
 		return fmt.Errorf("timeout waiting for sync")
 	}
 	log.Info("caches synced successfully")
 
 	for i := 0; i < threadiness; i++ {
-		go wait.Until(p.runWorker, time.Second, stopChan)
+		go wait.Until(p.runWorker, time.Second, p.stop)
 	}
 
 	// block until we are told to exit
-	<-stopChan
+	<-p.stop
 	return nil
 }
 
