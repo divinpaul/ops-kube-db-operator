@@ -1,8 +1,8 @@
-hash: fd67e22db7b06937505b2903bf8d7fd8fa88b70df3fac151465b5851726c3da3
-updated: 2017-10-27T09:28:04.946378985+11:00
+hash: 75d7b8d0ae6a0df2bb6ec52d43feac54764031aa7e2268b3edfd77b7a632ccb5
+updated: 2017-11-06T04:23:04.835640737Z
 imports:
 - name: github.com/aws/aws-sdk-go
-  version: e9f2a40fef17e4fc6a192dad77ce3b10fcde5caf
+  version: d46843b92a3a8e377d7fe24b4d70fca37f923d00
   subpackages:
   - aws
   - aws/awserr
@@ -88,7 +88,7 @@ imports:
   - jlexer
   - jwriter
 - name: github.com/MYOB-Technology/dataform
-  version: 6b623b97d2f66efd0d49eb02fd2daa270d39ce69
+  version: da0f3226395f9987a0dffc2a08f3c6db16415709
   subpackages:
   - pkg/db
   - pkg/service
@@ -121,6 +121,7 @@ imports:
   version: 8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9
   subpackages:
   - unix
+  - windows
 - name: golang.org/x/text
   version: 2910a502d2bf9e43193af9d68ca516529614eed3
   subpackages:

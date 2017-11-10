@@ -51,6 +51,7 @@ func New(
 	// dbInformer acts like a cache for db resources like above
 	dbInformer := informers.NewSharedInformerFactory(dbClient, 10*time.Minute)
 
+	informer := dbInformer.Postgresdb().V1alpha1().PostgresDBs()
 	pgmgr, err := pgdb.NewManager(kubeClient, dbClient, informer.Lister(), stop)
 	if err != nil {
 		return nil, err
