@@ -13,26 +13,18 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/controller"
+	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/signals"
 
-	dbClientSet "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
-	dbInformer "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions"
+	clientset "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
+	informers "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions"
 )
 
 var version = "snapshot"
 
 func main() {
-	loglevel := strings.ToLower(os.Getenv("LOG_LEVEL"))
-	if loglevel == "debug" {
-		log.SetLevel(log.DebugLevel)
-	} else if loglevel == "warn" {
-		log.SetLevel(log.WarnLevel)
-	} else if loglevel == "error" {
-		log.SetLevel(log.ErrorLevel)
-	} else {
-		log.SetLevel(log.InfoLevel)
-	}
 
-	log.Infof("rds-controller version: %v", version)
+	// set up signals so we handle the first shutdown signal gracefully
+	stopCh := signals.SetupSignalHandler()
 
 	// read kube config file from flag
 	var kubeconfig string
@@ -55,29 +47,47 @@ func main() {
 		config, err = rest.InClusterConfig()
 	}
 
-	client, err := kubernetes.NewForConfig(config)
+	kubeClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		log.Fatalf("error creating kubernetes client: %v", err)
 	}
 
-	dbClient, err := dbClientSet.NewForConfig(config)
+	dbClient, err := clientset.NewForConfig(config)
 	if err != nil {
 		log.Fatalf("error creating db client: %v", err)
 	}
 
 	// dbInformerFactory acts like a cache for db resources like above
-	dbInformerFactory := dbInformer.NewSharedInformerFactory(dbClient, 10*time.Minute)
+	dbInformerFactory := informers.NewSharedInformerFactory(dbClient, 10*time.Minute)
 
 	// this controller will deal with RDS dbs
-	rdsController, err := controller.New(client, dbClient, dbInformerFactory)
+	rdsController, err := controller.New(kubeClient, dbClient, dbInformerFactory)
 	if err != nil {
 		log.Fatalf("error creating db controller: %v", err)
 	}
 
 	// start go routines with our informers
-	go dbInformerFactory.Start(nil)
+	go dbInformerFactory.Start(stopCh)
 
-	if err = rdsController.Run(2, nil); err != nil {
-		log.Fatalf("Error running controller: %v", err)
+	if err = rdsController.Run(2, stopCh); err != nil {
+		log.Fatalf("error running controller: %v", err)
 	}
+
+}
+
+func init() {
+	customFormatter := new(log.TextFormatter)
+	customFormatter.TimestampFormat = "2006-01-02 15:04:05"
+	log.SetFormatter(customFormatter)
+	loglevel := strings.ToLower(os.Getenv("LOG_LEVEL"))
+	if loglevel == "debug" {
+		log.SetLevel(log.DebugLevel)
+	} else if loglevel == "warn" {
+		log.SetLevel(log.WarnLevel)
+	} else if loglevel == "error" {
+		log.SetLevel(log.ErrorLevel)
+	} else {
+		log.SetLevel(log.InfoLevel)
+	}
+	log.Infof("postgresdb-controller version: %v", version)
 }

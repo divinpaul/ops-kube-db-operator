@@ -76,12 +76,14 @@ func (s *Secret) SetData(data map[string]string) *Secret {
 	for k, v := range data {
 		s.obj.StringData[k] = v
 	}
+	s.exists = true
 	return s
 }
 
 // Delete deletes a secret from Kubernetes
 func (s *Secret) Delete() error {
 	if s.exists {
+		log.Warnf("deleting secret: %s/%s", s.ns, s.obj.ObjectMeta.Name)
 		err := s.client.Secrets(s.ns).Delete(s.obj.ObjectMeta.Name, &metav1.DeleteOptions{})
 		if err != nil {
 			return err
@@ -89,4 +91,12 @@ func (s *Secret) Delete() error {
 	}
 	s.exists = false
 	return nil
+}
+
+// GetValue retrieves a particular value from the secret
+func (s *Secret) GetValue(key string) string {
+	if s.exists {
+		return string(s.obj.Data[key])
+	}
+	return ""
 }

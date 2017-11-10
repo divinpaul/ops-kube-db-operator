@@ -9,10 +9,11 @@ import (
 	dfm "github.com/MYOB-Technology/dataform/pkg/db"
 	dfmsvc "github.com/MYOB-Technology/dataform/pkg/service"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/apis/postgresdb/v1alpha1"
-	dbClientSet "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
+	clientset "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
 	dbLister "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/listers/postgresdb/v1alpha1"
+	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/secret"
 
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
@@ -21,9 +22,9 @@ import (
 // Manager sets up defaults and config for new PgDB objects
 type Manager struct {
 	// client is the standart kubernetes clientset
-	client *kubernetes.Clientset
+	kubeClient *kubernetes.Clientset
 	// dbClient is the client for the DB crd
-	dbClient dbClientSet.Interface
+	dbClient clientset.Interface
 	// dbLister is the cache of DBs used for lookup
 	lister dbLister.PostgresDBLister
 	// defaults holds the rds db default settings
@@ -32,57 +33,43 @@ type Manager struct {
 }
 
 // NewManager creates a new Manager object
-func NewManager(client *kubernetes.Clientset, dbClient dbClientSet.Interface, lister dbLister.PostgresDBLister) (*Manager, error) {
+func NewManager(client *kubernetes.Clientset, dbClient clientset.Interface, lister dbLister.PostgresDBLister) (*Manager, error) {
 	defaults, err := NewDBDefaults(client)
 	if err != nil {
 		return nil, err
 	}
 	return &Manager{
-		client:   client,
-		dbClient: dbClient,
-		lister:   lister,
-		defaults: defaults,
-		rds:      dfm.NewManager(dfmsvc.New("")),
+		kubeClient: client,
+		dbClient:   dbClient,
+		lister:     lister,
+		defaults:   defaults,
+		rds:        dfm.NewManager(dfmsvc.New("")),
 	}, nil
 }
 
 // Sync will test for existence and create and save postgresdb resources
 func (p *Manager) Sync(key string) error {
 	// split the namespace and name from cache
-
 	ns, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return fmt.Errorf("error splitting namespace/key from obj %s: %v", key, err)
 	}
-	log.Infof("sync processing item: %s/%s", ns, name)
 
 	resource, err := p.lister.PostgresDBs(ns).Get(name)
 	if err != nil {
-		// return fmt.Errorf("error: sync failed to retrieve up to date db resource %s, it has most likely been deleted: %v", key, err)
-		log.Warnf("error: sync failed to retrieve up to date db resource %s, it has most likely been deleted: %v", key, err)
-		return nil
+		// Create a secret and see if it was pre-existing
+		log.Warnf("resource %s does not exist: %v", key, err)
+		log.Warnf("delete processing item: %s/%s", ns, name)
+		return p.Delete(ns, name)
 	}
+
+	log.Infof("sync processing item: %s/%s", ns, name)
 
 	// deep copy to not change the cache
 	newDbInterface, _ := scheme.Scheme.DeepCopy(resource)
-	newDb := newDbInterface.(*v1alpha1.PostgresDB)
-
-	instanceID := fmt.Sprintf("%s-%s", name, newDb.GetUID())
-	// ensure instanceId is less than 63 chars
-	instanceID = fmt.Sprintf("%.63s", instanceID)
-
-	instance := &dfm.DB{}
-	*instance = *p.defaults
-	instance.Name = &instanceID
-	pgdb := &PgDB{
-		exists:   true,
-		ns:       ns,
-		klient:   p.client,
-		dbklient: p.dbClient,
-		obj:      resource,
-		db:       instance,
-		rds:      p.rds,
-	}
+	obj := newDbInterface.(*v1alpha1.PostgresDB)
+	instanceID := fmt.Sprintf("%s-%s", name, obj.GetUID())
+	pgdb := p.newDB(instanceID, ns, resource)
 
 	return pgdb.Save()
 }
@@ -91,7 +78,7 @@ func (p *Manager) Sync(key string) error {
 func NewDBDefaults(client *kubernetes.Clientset) (*dfm.DB, error) {
 
 	cfgmaps := client.ConfigMaps("kube-system")
-	cfg, err := cfgmaps.Get("ops-kube-db-operator", meta_v1.GetOptions{})
+	cfg, err := cfgmaps.Get("ops-kube-db-operator", metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("error reading configmap: %s", err)
 	}
@@ -193,4 +180,43 @@ func NewDBDefaults(client *kubernetes.Clientset) (*dfm.DB, error) {
 
 	return &dbConfig, nil
 
+}
+
+func (p *Manager) newDB(instanceID string, ns string, db *v1alpha1.PostgresDB) *PgDB {
+	// ensure instanceId is less than 63 chars
+	instanceID = fmt.Sprintf("%.63s", instanceID)
+	instance := &dfm.DB{}
+	*instance = *p.defaults
+	instance.Name = &instanceID
+	pgdb := &PgDB{
+		obj:      db,
+		ns:       ns,
+		klient:   p.kubeClient,
+		dbklient: p.dbClient,
+		db:       instance,
+		rds:      p.rds,
+	}
+	return pgdb
+}
+
+// Delete will clean up rds resources
+func (p *Manager) Delete(ns string, name string) error {
+	newSec := secret.New(p.kubeClient, ns, name)
+	dbname := newSec.GetValue("dbname")
+	// if so...
+	if dbname != "" {
+		// get dbname
+		log.Warnf("deleting db: %s", dbname)
+		if len(dbname) > 0 {
+			// create a minimal db object
+			db := p.newDB(dbname, ns, nil)
+			// kill the secret??
+			// newSec.Delete()
+			// and kill the db
+			return db.Delete()
+		}
+	}
+	// return fmt.Errorf("error: sync failed to retrieve up to date db resource %s, it has most likely been deleted: %v", key, err)
+	log.Warnf("error: sync failed to retrieve up to date db resource %s/%s, it has most likely been deleted", ns, name)
+	return nil
 }

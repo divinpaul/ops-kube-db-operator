@@ -15,25 +15,22 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
-	dbClientSet "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
-	dbInformerFactory "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions"
-	dbLister "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/listers/postgresdb/v1alpha1"
+	clientset "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
+	informers "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/pgdb"
 )
 
 // PgController is a controller for Postgres RDS DBs.
 type PgController struct {
 	// client is the standart kubernetes clientset
-	client *kubernetes.Clientset
+	kubeClient *kubernetes.Clientset
 
 	// dbClient is the client for the DB crd
-	dbClient dbClientSet.Interface
+	dbClient clientset.Interface
 
 	// queue is where incoming work is placed - it handles de-dup and rate limiting
 	queue workqueue.RateLimitingInterface
 
-	// dbLister is the cache of DBs used for lookup
-	lister dbLister.PostgresDBLister
 	// dbSynced is the indicator of wether the cache is synced
 	synced cache.InformerSynced
 
@@ -43,25 +40,23 @@ type PgController struct {
 
 // New instantiates an pgController
 func New(
-	client *kubernetes.Clientset,
-	dbClient dbClientSet.Interface,
-	dbInformer dbInformerFactory.SharedInformerFactory,
+	kubeClient *kubernetes.Clientset,
+	dbClient clientset.Interface,
+	dbInformer informers.SharedInformerFactory,
 ) (*PgController, error) {
 
 	informer := dbInformer.Postgresdb().V1alpha1().PostgresDBs()
 
-	lister := informer.Lister()
-	pgmgr, err := pgdb.NewManager(client, dbClient, lister)
+	pgmgr, err := pgdb.NewManager(kubeClient, dbClient, informer.Lister())
 	if err != nil {
 		return nil, err
 	}
 	c := &PgController{
-		client:   client,
-		dbClient: dbClient,
-		lister:   lister,
-		synced:   informer.Informer().HasSynced,
-		queue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DB"),
-		pgmgr:    pgmgr,
+		kubeClient: kubeClient,
+		dbClient:   dbClient,
+		synced:     informer.Informer().HasSynced,
+		queue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DBIn"),
+		pgmgr:      pgmgr,
 	}
 
 	log.Info("setting up event handlers")
@@ -82,7 +77,6 @@ func New(
 func (p *PgController) Run(threadiness int, stopChan <-chan struct{}) error {
 	// do not allow panics to crash the controller
 	defer runtime.HandleCrash()
-
 	// shutdown the queue when done
 	defer p.queue.ShutDown()
 
@@ -105,17 +99,16 @@ func (p *PgController) Run(threadiness int, stopChan <-chan struct{}) error {
 
 func (p *PgController) runWorker() {
 	// process the next item in queue until it is empty
-	for p.processNextWorkItem() {
+	for p.processNextItem() {
 	}
 }
 
-func (p *PgController) processNextWorkItem() bool {
+func (p *PgController) processNextItem() bool {
 	// get next item from work queue
 	key, quit := p.queue.Get()
 	if quit {
 		return false
 	}
-
 	// indicate to queue when work is finished on a specific item
 	defer p.queue.Done(key)
 
