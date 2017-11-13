@@ -1,7 +1,5 @@
 # Kubernetes RDS Operator
 
-[![Build status](https://badge.buildkite.com/e7c13388bb3657b571037c100c3c607604002ff4ab6e69df2c.svg?branch=master)](https://buildkite.com/myob/ops-kube-db-operator)
-
 Operator to control RDS DBs in AWS, uses Config Maps for dafault configuration and Secrets for DB parameters.
 
 ## Installation
