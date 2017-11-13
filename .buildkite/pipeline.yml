@@ -1,5 +1,0 @@
-steps:
-  - command: make login publish
-    label: ':docker:'
-    agents:
-    - queue=central-prod
