@@ -76,7 +76,6 @@ func (s *Secret) SetData(data map[string]string) *Secret {
 	for k, v := range data {
 		s.obj.StringData[k] = v
 	}
-	s.exists = true
 	return s
 }
 
