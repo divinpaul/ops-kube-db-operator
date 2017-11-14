@@ -1,5 +1,7 @@
 # Kubernetes RDS Operator
 
+[![Build Status](https://travis-ci.org/MYOB-Technology/ops-kube-db-operator.svg?branch=master)](https://travis-ci.org/MYOB-Technology/ops-kube-db-operator)
+
 Operator to control RDS DBs in AWS, uses Config Maps for dafault configuration and Secrets for DB parameters.
 
 ## Installation

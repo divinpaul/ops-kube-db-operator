@@ -11,7 +11,7 @@ publish:
 	docker build --build-arg VERSION=latest -t ${REPO}:latest .
 	docker push ${REPO}:latest
 
-ifdef BUILDKITE_TAG
-	docker build --build-arg VERSION=${BUILDKITE_TAG} -t ${REPO}:${BUILDKITE_TAG} .
-	docker push ${REPO}:${BUILDKITE_TAG}
+ifdef TRAVIS_TAG
+	docker build --build-arg VERSION=${TRAVIS_TAG} -t ${REPO}:${TRAVIS_TAG} .
+	docker push ${REPO}:${TRAVIS_TAG}
 endif
