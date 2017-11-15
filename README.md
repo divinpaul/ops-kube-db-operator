@@ -10,6 +10,74 @@ Operator to control RDS DBs in AWS, uses Config Maps for dafault configuration a
 glide install
 ```
 
+## Usage
+
+Once the controller is running, users can create RDS Postgres DBs with the following yml:
+
+```bash
+❯ cat db.yml
+apiVersion: myob.com/v1alpha1
+kind: PostgresDB
+metadata:
+  name: example-db
+  namespace: my-namespace
+spec:
+  size: "db.t2.small"
+  storage: "10"
+  iops: "1000"
+
+❯ kubectl apply -f db.yml
+```
+
+Once this yml is applied, an RDS instance will be created. Note that it takes up to 10 minutes for RDS Instances to be ready so to check the status of the instance the user can check the `.status.ready` field on the resource:
+
+```bash
+❯ kubectl get postgresdb example-db -o yaml
+apiVersion: myob.com/v1alpha1
+kind: PostgresDB
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"myob.com/v1alpha1","kind":"PostgresDB","metadata":{"annotations":{},"name":"example-db","namespace":"kube-system"},"spec":{"size":"db.t2.small","storage":"10"}}
+  clusterName: ""
+  creationTimestamp: 2017-11-13T04:15:34Z
+  generation: 0
+  name: example-db
+  namespace: kube-system
+  resourceVersion: "29305859"
+  selfLink: /apis/myob.com/v1alpha1/namespaces/kube-system/postgresdbs/example-db
+  uid: 4b5c5df7-c829-11e7-9341-06163b58e928
+spec:
+  size: db.t2.small
+  storage: 10
+status:
+  arn: arn:aws:rds:ap-southeast-2:693429498512:db:example-db-4b5c5df7-c829-11e7-9341-06163b58e928
+  ready: available
+
+# or more directly
+❯ kubectl get postgresdb example-db -o go-template='{{.status.ready}}'
+available
+
+# The credentials to the DB can be found in kubernetes secrets which will be created for you
+# note that the values are base64 encoded.
+❯ kubectl get secrets example-db -o yaml
+apiVersion: v1
+data:
+  dbname: dGVzdC1leGFtcGxlLWRiLTItM2QyZWYwYjMtYzhjOC0xMWU3LWI4OGItMDJhNGU3Nzc5MWI0
+  endpoint: dGVzdC1leGFtcGxlLWRiLTItM2QyZWYwYjMtYzhjOC0xMWU3LWI4OGItMDJhNGU3Nzc5MWI0LmNidWp2Y2R5MGh3aC5hcC1zb3V0aGVhc3QtMi5yZHMuYW1hem9uYXdzLmNvbTo1NDMy
+  password: Qk9PdFRzPVpLbWNSKnJRWEZDKmcoaFklNE92cEhiTlQ=
+  username: cG5odmhqa2FtaXlldW5ydA==
+kind: Secret
+metadata:
+  creationTimestamp: 2017-11-13T23:13:20Z
+  name: example-db
+  namespace: kube-system
+  resourceVersion: "29307136"
+  selfLink: /api/v1/namespaces/kube-system/secrets/example-db
+  uid: 3d36c40d-c8c8-11e7-b88b-02a4e77791b4
+type: Opaque
+```
+
 ## Running from source
 
 * Set required AWS config in the configmap
@@ -18,7 +86,7 @@ glide install
  kubectl apply -f yaml/config-map.yaml
 ```
 
-* authenticate to kubes
+* authenticate to Kubernetes
 * authenticate to AWS
 * run it locally
 
