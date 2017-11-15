@@ -2,7 +2,15 @@
 
 [![Build Status](https://travis-ci.org/MYOB-Technology/ops-kube-db-operator.svg?branch=master)](https://travis-ci.org/MYOB-Technology/ops-kube-db-operator)
 
-Operator to control RDS DBs in AWS, uses Config Maps for dafault configuration and Secrets for DB parameters.
+Create RDS DBs in AWS straight from Kubernetes.
+
+## Table of Contents
+
+* [Installation](#installation)
+* [Usage](#usage)
+* [Verifying Access](#verifying-access)
+* [Running from source](#running-from-source)
+* [Roadmap](#roadmap)
 
 ## Installation
 
@@ -19,10 +27,10 @@ To install the controller in your cluster make sure to apply the CRD first and t
 
 ## Usage
 
-Once the controller is running, users can create RDS Postgres DBs with the following yml:
+Once the controller is running, users can create RDS Postgres DBs with the following yaml:
 
 ```bash
-❯ cat db.yml
+❯ cat db.yaml
 apiVersion: myob.com/v1alpha1
 kind: PostgresDB
 metadata:
@@ -33,10 +41,10 @@ spec:
   storage: "10"
   iops: "1000"
 
-❯ kubectl apply -f db.yml
+❯ kubectl apply -f db.yaml
 ```
 
-Once this yml is applied, an RDS instance will be created. Note that it takes up to 10 minutes for RDS Instances to be ready so to check the status of the instance the user can check the `.status.ready` field on the resource:
+Once this yaml is applied, an RDS instance will be created. Note that it takes up to 10 minutes for RDS Instances to be ready so to check the status of the instance the user can check the `.status.ready` field on the resource:
 
 ```bash
 ❯ kubectl get postgresdb example-db -o yaml
@@ -85,11 +93,16 @@ metadata:
 type: Opaque
 ```
 
+## Verifying Access
+
+To verify access to the cluster, please read the docs [here](docs/ACCESS.md)
+
 ## Running from source
 
 * Authenticate to Kubernetes
 * Authenticate to AWS
-* Set required AWS config in the configmap
+* Set required AWS config in the configmap.
+  * More information about the configurable parameters can be found [here](docs/CONFIGURATION.md)
 
 ```bash
 ❯ kubectl apply -f yaml/config-map.yaml
@@ -107,7 +120,7 @@ type: Opaque
 ❯ go run *.go -kubeconfig ~/.kube/config
 ```
 
-## Auto Generating Client with Kubernetes code-generator
+### Auto Generating Client with Kubernetes code-generator
 
 * Make sure to `go get -d k8s.io/code-generator`
 * If that is failing, try to get it from github.com/sttts/code-generator
