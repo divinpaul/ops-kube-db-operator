@@ -6,8 +6,15 @@ Operator to control RDS DBs in AWS, uses Config Maps for dafault configuration a
 
 ## Installation
 
+To install the controller in your cluster make sure to apply the CRD first and then create a deployment with the appropriate images:
+
 ```bash
-glide install
+# apply the crd
+❯ kubectl apply -f yaml/crd.yaml
+# apply the settings config-map (make sure to edit it with settings to suit you)
+❯ kubectl apply -f yaml/config-map.yaml
+# now create a deployment
+❯ kubectl apply -f yaml/deployment.yaml
 ```
 
 ## Usage
@@ -80,18 +87,24 @@ type: Opaque
 
 ## Running from source
 
+* Authenticate to Kubernetes
+* Authenticate to AWS
 * Set required AWS config in the configmap
 
 ```bash
- kubectl apply -f yaml/config-map.yaml
+❯ kubectl apply -f yaml/config-map.yaml
 ```
 
-* authenticate to Kubernetes
-* authenticate to AWS
-* run it locally
+* Install dependencies with glide
 
 ```bash
-go run *.go -kubeconfig ~/.kube/config
+❯ glide install
+```
+
+* run it
+
+```bash
+❯ go run *.go -kubeconfig ~/.kube/config
 ```
 
 ## Auto Generating Client with Kubernetes code-generator
