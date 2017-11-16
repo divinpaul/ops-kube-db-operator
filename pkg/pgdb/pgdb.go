@@ -139,7 +139,7 @@ func (p *PgDB) updateDBSecret() {
 		}
 
 		sec.Host = *p.db.Address
-		sec.Port = string(*p.db.Port)
+		sec.Port = "5432"
 
 		err = secret.SaveOrCreate(p.klient, sec)
 		if err != nil {
