@@ -17,3 +17,5 @@ debug
 
 # vendor folder
 vendor/
+
+ops-kube-db-operator

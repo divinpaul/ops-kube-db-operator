@@ -37,7 +37,7 @@ func (d *DBSecret) String() string {
 func (d *DBSecret) Map() map[string]string {
 	return map[string]string{
 		HOST:     d.Host,
-		PORT:     string(d.Port),
+		PORT:     d.Port,
 		NAME:     d.DatabaseName,
 		USER:     d.Username,
 		PASSWORD: d.Password,
@@ -47,13 +47,13 @@ func (d *DBSecret) Map() map[string]string {
 
 func FromKubeSecret(obj *apiv1.Secret) *DBSecret {
 	return &DBSecret{
-		Name:         obj.ObjectMeta.Name,
-		Namespace:    obj.ObjectMeta.Namespace,
-		Host:         obj.StringData[HOST],
-		Port:         obj.StringData[PORT],
-		Username:     obj.StringData[USER],
-		Password:     obj.StringData[PASSWORD],
-		DatabaseName: obj.StringData[NAME],
+		Name:         obj.Name,
+		Namespace:    obj.Namespace,
+		Host:         string(obj.Data[HOST]),
+		Port:         string(obj.Data[PORT]),
+		Username:     string(obj.Data[USER]),
+		Password:     string(obj.Data[PASSWORD]),
+		DatabaseName: string(obj.Data[NAME]),
 	}
 }
 
