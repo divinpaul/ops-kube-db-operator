@@ -30,7 +30,7 @@ type DBSecret struct {
 
 // Setup stringer interface for printing
 func (d *DBSecret) String() string {
-	return fmt.Sprintf("Database secret for: %s@%s:%s", d.Username, d.Host, d.Port)
+	return fmt.Sprintf("Database secret %s - %s for: %s@%s:%s", d.Namespace, d.Name, d.Username, d.Host, d.Port)
 }
 
 // Centralise secret key structure

@@ -17,7 +17,11 @@ const (
 	pgPollIntervalSeconds time.Duration = 60
 	pgPollTimeoutSeconds  time.Duration = 1800
 
-	ADMIN_SECRET_POSTFIX = "-admin"
+	ADMIN_SECRET_POSTFIX  = "-admin"
+	MASTER_SECRET_POSTFIX = "-master"
+
+	// TODO: When we start using env vars, make this configurable!!!!
+	OPERATOR_NAMESPACE = "kube-system"
 )
 
 // PgDB represents a Kubernetes PostgresDB resource
@@ -142,6 +146,16 @@ func (p *PgDB) updateDBSecret() {
 			log.Errorf("error storing DB secret: %s, %s", sec, err)
 			return
 		}
+
+		log.Infof("successfully stored DB secret: %s", sec)
+
+		sec.Name = p.obj.Name + MASTER_SECRET_POSTFIX
+		sec.Namespace = OPERATOR_NAMESPACE
+		err = secret.SaveOrCreate(p.klient, sec)
+		if err != nil {
+			log.Errorf("error storing DB secret: %s, %s", sec, err)
+			return
+		}
 		log.Infof("successfully stored DB secret: %s", sec)
 	}
 }
@@ -164,10 +178,14 @@ func (p *PgDB) configureNewDB() error {
 			return fmt.Errorf("error storing DB master credentials for DB: %s, %s", p.obj.Name, err)
 		}
 
-		newSec.Name = "postgres"
+		newSec.DatabaseName = "postgres"
 		newSec.Username = username
 		newSec.Password = password
 
+		err = secret.SaveOrCreate(p.klient, newSec)
+
+		newSec.Name = p.obj.Name + MASTER_SECRET_POSTFIX
+		newSec.Namespace = OPERATOR_NAMESPACE
 		err = secret.SaveOrCreate(p.klient, newSec)
 
 		if err != nil {
