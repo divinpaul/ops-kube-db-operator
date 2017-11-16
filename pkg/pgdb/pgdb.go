@@ -16,6 +16,8 @@ import (
 const (
 	pgPollIntervalSeconds time.Duration = 60
 	pgPollTimeoutSeconds  time.Duration = 1800
+
+	ADMIN_SECRET_POSTFIX = "-admin"
 )
 
 // PgDB represents a Kubernetes PostgresDB resource
@@ -120,20 +122,27 @@ func (p *PgDB) Delete() error {
 }
 
 // updateEndpoint will store the endpoint as a secret when db address and port are available
+// TODO: this should return an error for error handling
 func (p *PgDB) updateDBSecret() {
 	if p.db.Address != nil && p.db.Port != nil {
-		endpoint := fmt.Sprintf("%s:%d", *p.db.Address, *p.db.Port)
-		data := map[string]string{
-			"endpoint": endpoint,
-			"dbname":   *p.db.Name,
-		}
-		newSec := secret.New(p.klient, p.obj.Namespace, p.obj.Name).SetData(data)
-		err := newSec.Save()
+		secretName := p.obj.Name + ADMIN_SECRET_POSTFIX
+
+		_, sec, err := secret.NewOrGet(p.klient, p.obj.Namespace, secretName)
+
 		if err != nil {
-			log.Errorf("error storing DB secret: %s, %s", p.obj.Name, err)
+			log.Errorf("error getting or creating secret: %s: %s", secretName, err)
 			return
 		}
-		log.Infof("successfully stored DB secret: %s", p.obj.Name)
+
+		sec.Host = *p.db.Address
+		sec.Port = string(*p.db.Port)
+
+		err = secret.SaveOrCreate(p.klient, sec)
+		if err != nil {
+			log.Errorf("error storing DB secret: %s, %s", sec, err)
+			return
+		}
+		log.Infof("successfully stored DB secret: %s", sec)
 	}
 }
 
@@ -142,23 +151,30 @@ func (p *PgDB) configureNewDB() error {
 
 	username := p.rds.GenerateRandomUsername(16)
 	password := p.rds.GenerateRandomPassword(32)
+
 	if p.db.Name == nil {
 		return fmt.Errorf("error DB name is not set for DB: %s", p.obj.Name)
 	}
 
 	// create secret with some info
 	defer func() error {
-		data := map[string]string{
-			"username": username,
-			"password": password,
-			"dbname":   *p.db.Name,
-		}
-		newSec := secret.New(p.klient, p.obj.Namespace, p.obj.Name).SetData(data)
-		err := newSec.Save()
+		_, newSec, err := secret.NewOrGet(p.klient, p.obj.Namespace, p.obj.Name+ADMIN_SECRET_POSTFIX)
+
 		if err != nil {
 			return fmt.Errorf("error storing DB master credentials for DB: %s, %s", p.obj.Name, err)
 		}
-		log.Infof("successfully stored DB master credentials: %s, %s, %s", p.obj.Name, username, password)
+
+		newSec.Name = "postgres"
+		newSec.Username = username
+		newSec.Password = password
+
+		err = secret.SaveOrCreate(p.klient, newSec)
+
+		if err != nil {
+			return fmt.Errorf("error storing DB master credentials: %s: %s", newSec, err)
+		}
+
+		log.Infof("successfully stored DB master credentials: %s", newSec)
 		return nil
 	}()
 
