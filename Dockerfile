@@ -11,4 +11,4 @@ RUN CGO_ENABLED=0 go build -o /build/postgres-operator -ldflags "-X main.version
 
 FROM scratch
 COPY --from=builder /build/postgres-operator /app
-ENTRYPOINT [ "/app" ]
+ENTRYPOINT [ "/app", "--logtostderr=true"]
