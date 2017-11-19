@@ -78,10 +78,11 @@ available
 ❯ kubectl get secrets example-db -o yaml
 apiVersion: v1
 data:
-  dbname: dGVzdC1leGFtcGxlLWRiLTItM2QyZWYwYjMtYzhjOC0xMWU3LWI4OGItMDJhNGU3Nzc5MWI0
-  endpoint: dGVzdC1leGFtcGxlLWRiLTItM2QyZWYwYjMtYzhjOC0xMWU3LWI4OGItMDJhNGU3Nzc5MWI0LmNidWp2Y2R5MGh3aC5hcC1zb3V0aGVhc3QtMi5yZHMuYW1hem9uYXdzLmNvbTo1NDMy
-  password: Qk9PdFRzPVpLbWNSKnJRWEZDKmcoaFklNE92cEhiTlQ=
-  username: cG5odmhqa2FtaXlldW5ydA==
+  DB_NAME: dGVzdC1leGFtcGxlLWRiLTItM2QyZWYwYjMtYzhjOC0xMWU3LWI4OGItMDJhNGU3Nzc5MWI0
+  DB_HOST: dGVzdC1leGFtcGxlLWRiLTItM2QyZWYwYjMtYzhjOC0xMWU3LWI4OGItMDJhNGU3Nzc5MWI0LmNidWp2Y2R5MGh3aC5hcC1zb3V0aGVhc3QtMi5yZHMuYW1hem9uYXdzLmNvbTo1NDMy
+  DB_PASSWORD: Qk9PdFRzPVpLbWNSKnJRWEZDKmcoaFklNE92cEhiTlQ=
+  DB_PORT: NTQzMg==
+  DB_USER: cG5odmhqa2FtaXlldW5ydA==
 kind: Secret
 metadata:
   creationTimestamp: 2017-11-13T23:13:20Z
