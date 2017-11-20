@@ -39,12 +39,23 @@ metadata:
 spec:
   size: "db.t2.small"
   storage: "10"
-  iops: "1000"
 
 ❯ kubectl apply -f db.yaml
 ```
+An example for an instance with defined iops can be found [here](./yaml/example-iops.yaml). This is an MVP feature with no input testing, so make sure your iops and storage conform to the strorage constraints.
+```
+    // PostgreSQL
+    //
+    // Constraints to the amount of storage for each storage type are the following:
+    //
+    //    * General Purpose (SSD) storage (gp2): Must be an integer from 5 to 6144.
+    //
+    //    * Provisioned IOPS storage (io1): Must be an integer from 100 to 6144.
+    //
+    //    * Magnetic storage (standard): Must be an integer from 5 to 3072.
+```
 
-Once this yaml is applied, an RDS instance will be created. Note that it takes up to 10 minutes for RDS Instances to be ready so to check the status of the instance the user can check the `.status.ready` field on the resource:
+Once the resource yaml is applied, an RDS instance will be created. Note that it takes up to 10 minutes for RDS Instances to be ready so to check the status of the instance the user can check the `.status.ready` field on the resource:
 
 ```bash
 ❯ kubectl get postgresdb example-db -o yaml
