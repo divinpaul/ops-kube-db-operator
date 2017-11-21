@@ -203,22 +203,32 @@ func (p *Manager) newDB(instanceID string, ns string, db *v1alpha1.PostgresDB) *
 
 // Delete will clean up rds resources
 func (p *Manager) Delete(ns string, name string) error {
-	newSec := secret.New(p.kubeClient, ns, name)
-	dbname := newSec.GetValue("dbname")
-	// if so...
-	if dbname != "" {
+	secretName := name + ADMIN_SECRET_POSTFIX
+	found, newSec, err := secret.NewOrGet(p.kubeClient, ns, secretName)
+	if err != nil {
+		log.Warnf("error: could not retrieve secret for %s/%s: %v", ns, secretName, err)
+		return nil
+	}
+	if found {
 		// get dbname
-		log.Warnf("deleting db: %s", dbname)
-		if len(dbname) > 0 {
+		secretData := newSec.Map()
+		instanceName := secretData["DB_INSTANCE"]
+		if len(instanceName) > 0 {
+			log.Warnf("deleting db: %s", instanceName)
 			// create a minimal db object
-			db := p.newDB(dbname, ns, nil)
+			db := p.newDB(instanceName, ns, nil)
 			// kill the secret??
 			// newSec.Delete()
 			// and kill the db
 			return db.Delete()
+		} else {
+			log.Warnf("secret for db found but DatabaseName is not set: %s/%s", ns, name)
+			return nil
 		}
+	} else {
+		log.Warnf("secret for db not found: %s/%s", ns, secretName)
 	}
-	// return fmt.Errorf("error: sync failed to retrieve up to date db resource %s, it has most likely been deleted: %v", key, err)
+
 	log.Warnf("error: sync failed to retrieve up to date db resource %s/%s, it has most likely been deleted", ns, name)
 	return nil
 }

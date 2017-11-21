@@ -2,6 +2,7 @@ package secret
 
 import (
 	"fmt"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 
@@ -15,6 +16,7 @@ const (
 	USER     = "DB_USER"
 	PASSWORD = "DB_PASSWORD"
 	NAME     = "DB_NAME"
+	INSTANCE = "DB_INSTANCE"
 	URL      = "DATABASE_URL"
 )
 
@@ -26,6 +28,7 @@ type DBSecret struct {
 	Password     string
 	Username     string
 	DatabaseName string
+	InstanceName string
 }
 
 // Setup stringer interface for printing
@@ -39,6 +42,7 @@ func (d *DBSecret) Map() map[string]string {
 		HOST:     d.Host,
 		PORT:     d.Port,
 		NAME:     d.DatabaseName,
+		INSTANCE: d.InstanceName,
 		USER:     d.Username,
 		PASSWORD: d.Password,
 		URL:      fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=true", d.Username, d.Password, d.Host, d.Port, d.DatabaseName),
@@ -54,6 +58,7 @@ func FromKubeSecret(obj *apiv1.Secret) *DBSecret {
 		Username:     string(obj.Data[USER]),
 		Password:     string(obj.Data[PASSWORD]),
 		DatabaseName: string(obj.Data[NAME]),
+		InstanceName: string(obj.Data[INSTANCE]),
 	}
 }
 

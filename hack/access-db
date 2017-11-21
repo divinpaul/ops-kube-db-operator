@@ -1,12 +1,29 @@
-### access-db
 #!/usr/bin/env bash
-
+### access-db
 ###
 # TODO: update `--db` flag to represent the actual db name once that is changed in the code
 ###
 
 NAMESPACE=$1
 NAME=$2
+
+if [ -z "${NAMESPACE}" -o -z "${NAME}" ]
+then
+  echo
+  echo please provide namespace and postgresdb name on the command line
+  echo ie. ./access-db namespace example-db
+  echo
+  exit 1
+fi
+
+if [ -z $(which jq) ]
+then
+  echo
+  echo "missing jq - please install it and rerun"
+  echo "ie. brew install jq"
+  echo
+  exit 1
+fi
 
 DB_AUTH=`kubectl get -n $NAMESPACE secrets $NAME-admin -o json`
 DB_USER=`echo $DB_AUTH | jq -r '.data.DB_USER'|base64 --decode`
@@ -42,3 +59,4 @@ done
 
 echo "Access on http://localhost:8081"
 kubectl -n $NAMESPACE port-forward $POD_NAME 8081
+
