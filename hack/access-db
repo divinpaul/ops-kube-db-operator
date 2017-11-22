@@ -42,9 +42,9 @@ kubectl run -n $NAMESPACE $POD_NAME \
     --pod-running-timeout=1h \
     --image=sosedoff/pgweb:$PGWEB_VERSION -- \
     pgweb --host $DB_HOST \
-        --user $DB_USER \
+        --user "$DB_USER" \
         --db postgres \
-        --pass "$DB_PASSWORD"
+        --pass \"$DB_PASSWORD\"
 
 # WAIT FOR POD TO BE READY
 while true
