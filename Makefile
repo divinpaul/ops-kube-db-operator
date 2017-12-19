@@ -2,6 +2,12 @@
 
 REPO := myobplatform/ops-kube-db-operator
 
+test: deps
+	docker-compose run go test ./...
+
+deps:
+	docker-compose run dep ensure -v
+
 ifdef DOCKERHUB_PASSWORD
 login:
 	@docker login --username ${DOCKERHUB_USERNAME} --password ${DOCKERHUB_PASSWORD}
