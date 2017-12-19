@@ -6,12 +6,12 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	dfm "github.com/MYOB-Technology/dataform/pkg/db"
-	dfmsvc "github.com/MYOB-Technology/dataform/pkg/service"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/apis/postgresdb/v1alpha1"
 	clientset "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
 	dbLister "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/listers/postgresdb/v1alpha1"
+	dfm "github.com/MYOB-Technology/ops-kube-db-operator/pkg/db"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/secret"
+	dfmsvc "github.com/MYOB-Technology/ops-kube-db-operator/pkg/service"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -98,10 +98,12 @@ func NewDBDefaults(client *kubernetes.Clientset) (*dfm.DB, error) {
 
 	securitygroups := make([]*string, 0, 5)
 	securitygroups = append(securitygroups, &dbSecurityGroupID)
-	dbConfig := dfm.DB{
+	instanceParams := dfm.InstanceParams{
 		SubnetGroupName: &dbSubnetGroupName,
 		SecurityGroups:  securitygroups,
 	}
+	dbConfig := dfm.DB{}
+	dbConfig.InstanceParams = instanceParams
 
 	// retrieve db port if provided
 	var dbPort int64

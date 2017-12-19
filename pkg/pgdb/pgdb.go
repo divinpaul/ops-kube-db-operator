@@ -6,9 +6,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	dfm "github.com/MYOB-Technology/dataform/pkg/db"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/apis/postgresdb/v1alpha1"
 	dbClientSet "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
+	dfm "github.com/MYOB-Technology/ops-kube-db-operator/pkg/db"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/secret"
 	"k8s.io/client-go/kubernetes"
 )
@@ -52,7 +52,7 @@ func (p *PgDB) Save() error {
 
 func (p *PgDB) Create() error {
 	var err error
-	p.db, err = p.rds.Create(p.db)
+	p.db, err = p.rds.CreateDevelopmentInstance(p.db)
 	if err != nil {
 		return err
 	}
@@ -207,18 +207,18 @@ func (p *PgDB) configureNewDB() error {
 	// TODO: add controller version tag
 	// TODO: add cluster name or identifier tag
 
-	p.db.MasterUsername = &username
-	p.db.MasterUserPassword = &password
-	p.db.Tags = tags
+	p.db.InstanceParams.MasterUsername = &username
+	p.db.InstanceParams.MasterUserPassword = &password
+	p.db.InstanceParams.Tags = tags
 	if p.obj.Spec.Size != "" {
-		p.db.DBInstanceClass = &p.obj.Spec.Size
+		p.db.InstanceParams.DBInstanceClass = &p.obj.Spec.Size
 	}
 
 	// retrieve gigabytes if provided
 	var dbStorageAllocatedGB int64
 	if p.obj.Spec.Storage > 0 {
 		dbStorageAllocatedGB = p.obj.Spec.Storage
-		p.db.StorageAllocatedGB = &dbStorageAllocatedGB
+		p.db.InstanceParams.StorageAllocatedGB = &dbStorageAllocatedGB
 	}
 
 	// retrieve iops if provided
@@ -226,10 +226,10 @@ func (p *PgDB) configureNewDB() error {
 	var dbStorageType string
 	if p.obj.Spec.Iops > 0 {
 		dbStorageIops = p.obj.Spec.Iops
-		p.db.StorageIops = &dbStorageIops
+		p.db.InstanceParams.StorageIops = &dbStorageIops
 		// if iops is provided, explicitly set the storage type to io1
 		dbStorageType = "io1"
-		p.db.StorageType = &dbStorageType
+		p.db.InstanceParams.StorageType = &dbStorageType
 	}
 
 	return nil

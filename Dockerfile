@@ -1,11 +1,12 @@
+FROM golang:1.9 as dep
+RUN go get -u github.com/golang/dep/cmd/dep
+
 FROM golang:1.9 as builder
-
-RUN curl https://glide.sh/get | sh
-
+COPY --from=dep /go/bin/dep /go/bin/dep
 WORKDIR /go/src/github.com/MYOB-Technology/ops-kube-db-operator
 COPY . /go/src/github.com/MYOB-Technology/ops-kube-db-operator
-RUN glide install
-
+RUN dep ensure -v
+RUN go test ./...
 ARG VERSION=latest
 RUN CGO_ENABLED=0 go build -o /build/postgres-operator -ldflags "-X main.version=$VERSION" -v
 
