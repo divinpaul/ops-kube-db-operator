@@ -74,7 +74,7 @@ func (c *Conn) CreateDatabase(name string) (dd *DatabaseDescriptor, err error) {
 	name = truncateBytes(name, 63)
 	uname := truncateBytes(name, 56) // 63 - 7 to fit user names
 
-	pw, err := genPasswords(3, 30)
+	pw, err := GenPasswords(3, 30)
 	if err != nil {
 		return
 	}
@@ -303,7 +303,7 @@ func genPassword(l int) (p string, err error) {
 }
 
 // genPasswords generates n passwords of length l
-func genPasswords(n, l int) (p []string, err error) {
+func GenPasswords(n, l int) (p []string, err error) {
 	p = make([]string, n)
 	for i := 0; i < len(p); i++ {
 		p[i], err = genPassword(l)
