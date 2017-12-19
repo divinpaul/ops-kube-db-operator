@@ -9,4 +9,9 @@ services:
   - docker
 
 script:
-- make login publish
+  - make test
+
+after_success:
+  - if [ "$TRAVIS_BRANCH" == "master" ]; then
+    make login publish
+    fi
