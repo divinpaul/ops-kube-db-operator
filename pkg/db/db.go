@@ -2,7 +2,6 @@ package db
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 	"os/signal"
 	"sync"
@@ -383,28 +382,6 @@ func (r *Manager) IsFinalState(db *DB) State {
 		Final: true,
 		Err:   errStateTransitionedToErrorCondition,
 	}
-}
-
-// generateRandomString receives a size and a string of allowed characters and generates a random string of the given size
-func generateRandomString(strlen int, allowedChars string, t clock) string {
-	rsource := rand.New(rand.NewSource(t.Now().UnixNano()))
-	result := make([]byte, strlen)
-	for i := range result {
-		result[i] = allowedChars[rsource.Intn(len(allowedChars))]
-	}
-	return string(result)
-}
-
-// GenerateRandomPassword receives a size and generates a random password of that size
-func (r *Manager) GenerateRandomPassword(strlen int) string {
-	const allowedChars = "abcdefghijklmnopqrstuvwxyzABCDEFHIJKLMNOPQRSTUVWXYZ0123456789!#$%^&*()-+="
-	return generateRandomString(strlen, allowedChars, actualClock{})
-}
-
-// GenerateRandomUsername receives a size and generates a random username of that size
-func (r *Manager) GenerateRandomUsername(strlen int) string {
-	const allowedChars = "abcdefghijklmnopqrstuvwxyz"
-	return generateRandomString(strlen, allowedChars, actualClock{})
 }
 
 // clock allows us to mock out time.Now in our tests

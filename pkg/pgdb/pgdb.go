@@ -9,6 +9,7 @@ import (
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/apis/postgresdb/v1alpha1"
 	dbClientSet "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
 	dfm "github.com/MYOB-Technology/ops-kube-db-operator/pkg/db"
+	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/postgres"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/secret"
 	"k8s.io/client-go/kubernetes"
 )
@@ -164,8 +165,13 @@ func (p *PgDB) updateDBSecret() {
 func (p *PgDB) configureNewDB() error {
 	log.Infof("configuring new db: %s", p.obj.Name)
 
-	username := p.rds.GenerateRandomUsername(16)
-	password := p.rds.GenerateRandomPassword(32)
+	userPass, err := postgres.GenPasswords(2, 16)
+	if err != nil {
+		return err
+	}
+
+	username := userPass[0]
+	password := userPass[1]
 
 	if p.db.Name == nil {
 		return fmt.Errorf("error DB name is not set for DB: %s", p.obj.Name)

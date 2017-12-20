@@ -246,34 +246,6 @@ func TestIsFinalState(t *testing.T) {
 
 }
 
-func TestGenerateRandomString(t *testing.T) {
-	testCases := []struct {
-		desc     string
-		size     int
-		allowed  string
-		expected string
-	}{
-		{
-			desc: "0 size", size: 0, allowed: "abc", expected: "",
-		},
-		{
-			desc: "Valid Size and Some Chars", size: 10, allowed: "abc", expected: "accbacccac",
-		},
-		{
-			desc: "Valid size with symbols", size: 8, allowed: "!@#$%", expected: "@@@%@#@@",
-		},
-	}
-
-	for _, tC := range testCases {
-		t.Run(tC.desc, func(t *testing.T) {
-			got := generateRandomString(tC.size, tC.allowed, mockClock{})
-			if got != tC.expected {
-				t.Errorf("expected string to be %v, got %v", tC.expected, got)
-			}
-		})
-	}
-}
-
 type mockRdsSvc struct {
 	rdsiface.RDSAPI
 	CreateDBInstanceOutput    *rds.CreateDBInstanceOutput

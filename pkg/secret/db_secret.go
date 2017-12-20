@@ -45,7 +45,7 @@ func (d *DBSecret) Map() map[string]string {
 		INSTANCE: d.InstanceName,
 		USER:     d.Username,
 		PASSWORD: d.Password,
-		URL:      fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=true", d.Username, d.Password, d.Host, d.Port, d.DatabaseName),
+		URL:      fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=require", d.Username, d.Password, d.Host, d.Port, d.DatabaseName),
 	}
 }
 
