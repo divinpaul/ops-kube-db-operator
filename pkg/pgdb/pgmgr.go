@@ -11,7 +11,6 @@ import (
 	dbLister "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/listers/postgresdb/v1alpha1"
 	dfm "github.com/MYOB-Technology/ops-kube-db-operator/pkg/db"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/secret"
-	dfmsvc "github.com/MYOB-Technology/ops-kube-db-operator/pkg/service"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -38,7 +37,7 @@ func NewManager(client *kubernetes.Clientset, dbClient clientset.Interface, list
 	if err != nil {
 		return nil, err
 	}
-	dfmmgr := dfm.NewManager(dfmsvc.New(""))
+	dfmmgr := dfm.NewManager(NewService(""))
 	dfmmgr.SetShutdownChannel(stop)
 	return &Manager{
 		kubeClient: client,

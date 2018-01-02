@@ -1,4 +1,4 @@
-package service
+package pgdb
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
@@ -13,7 +13,7 @@ type Service interface {
 }
 
 // New returns an aws session with a region when a non nil region is provided, defaults otherwise
-func New(region string) Service {
+func NewService(region string) Service {
 	return rds.New(NewSession(region))
 }
 
