@@ -19,7 +19,7 @@ const (
 )
 
 // DB InstanceParam type
-type InstanceParams struct {
+type DB struct {
 	Name                       *string
 	Status                     *string
 	Engine                     *string
@@ -41,45 +41,27 @@ type InstanceParams struct {
 	PreferredBackupWindow      *string
 	PreferredMaintenanceWindow *string
 	Tags                       []*Tag
-}
-
-// ProfileInstanceParams these can change based on the profile
-type ProfileInstanceParams struct {
-	MultiAZ               *bool
-	BackupRetentionPeriod *int64
-}
-
-// DB Instance Type
-type DB struct {
-	InstanceParams
-	ProfileInstanceParams
+	MultiAZ                    *bool
+	BackupRetentionPeriod      *int64
 }
 
 // FromDBInstance converts an *rds.DBInstance type to *DB type
 func FromDBInstance(r *rds.DBInstance) *DB {
-	var Params = InstanceParams{
-		ARN:                r.DBInstanceArn,
-		Name:               r.DBInstanceIdentifier,
-		Status:             r.DBInstanceStatus,
-		CopyTagsToSnapshot: r.CopyTagsToSnapshot,
-		DBInstanceClass:    r.DBInstanceClass,
-		MasterUsername:     r.MasterUsername,
-		StorageAllocatedGB: r.AllocatedStorage,
-		StorageType:        r.StorageType,
-		StorageIops:        r.Iops,
-		StorageEncrypted:   r.StorageEncrypted,
-		Engine:             r.Engine,
-		EngineVersion:      r.EngineVersion,
-	}
-
-	var ProfileParams = ProfileInstanceParams{
+	db := &DB{
+		ARN:                   r.DBInstanceArn,
+		Name:                  r.DBInstanceIdentifier,
+		Status:                r.DBInstanceStatus,
+		CopyTagsToSnapshot:    r.CopyTagsToSnapshot,
+		DBInstanceClass:       r.DBInstanceClass,
+		MasterUsername:        r.MasterUsername,
+		StorageAllocatedGB:    r.AllocatedStorage,
+		StorageType:           r.StorageType,
+		StorageIops:           r.Iops,
+		StorageEncrypted:      r.StorageEncrypted,
+		Engine:                r.Engine,
+		EngineVersion:         r.EngineVersion,
 		MultiAZ:               r.MultiAZ,
 		BackupRetentionPeriod: r.BackupRetentionPeriod,
-	}
-
-	var db = &DB{
-		InstanceParams:        Params,
-		ProfileInstanceParams: ProfileParams,
 	}
 
 	if r.KmsKeyId != nil {

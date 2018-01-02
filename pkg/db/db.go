@@ -14,25 +14,29 @@ import (
 )
 
 var (
-	// Defaults are rds instance defaults for non production
-	CommonDefaults = InstanceParams{
-		DBInstanceClass:    aws.String("db.t2.small"),
-		CopyTagsToSnapshot: aws.Bool(true),
-		Engine:             aws.String("postgres"),
-		EngineVersion:      aws.String("9.6.3"),
-		Port:               aws.Int64(5432),
-		StorageAllocatedGB: aws.Int64(5),
-		StorageEncrypted:   aws.Bool(true),
-		StorageType:        aws.String("gp2"),
-	}
-
 	// DevelopmentDefaults Profile defaults
-	DevelopmentDefaults = ProfileInstanceParams{
+	DevelopmentDefaults = &DB{
+		DBInstanceClass:       aws.String("db.t2.small"),
+		CopyTagsToSnapshot:    aws.Bool(true),
+		Engine:                aws.String("postgres"),
+		EngineVersion:         aws.String("9.6.3"),
+		Port:                  aws.Int64(5432),
+		StorageAllocatedGB:    aws.Int64(5),
+		StorageEncrypted:      aws.Bool(true),
+		StorageType:           aws.String("gp2"),
 		MultiAZ:               aws.Bool(false),
 		BackupRetentionPeriod: aws.Int64(0),
 	}
 	// ProductionDefaults Profile defaults
-	ProductionDefaults = ProfileInstanceParams{
+	ProductionDefaults = &DB{
+		DBInstanceClass:       aws.String("db.t2.small"),
+		CopyTagsToSnapshot:    aws.Bool(true),
+		Engine:                aws.String("postgres"),
+		EngineVersion:         aws.String("9.6.3"),
+		Port:                  aws.Int64(5432),
+		StorageAllocatedGB:    aws.Int64(5),
+		StorageEncrypted:      aws.Bool(true),
+		StorageType:           aws.String("gp2"),
 		MultiAZ:               aws.Bool(true),
 		BackupRetentionPeriod: aws.Int64(35),
 	}
@@ -44,24 +48,6 @@ var (
 	errDbMasterUserPasswordMissing       = fmt.Errorf("error: required DB field MasterUserPassword is missing")
 	errStateTransitionedToErrorCondition = fmt.Errorf("error: db transitioned to error condition")
 )
-
-// Set Production Defaults
-func SetProductionDefaults() *DB {
-	db := &DB{
-		InstanceParams:        CommonDefaults,
-		ProfileInstanceParams: ProductionDefaults,
-	}
-	return db
-}
-
-// Set Development Defaults
-func SetDevelopmentDefaults() *DB {
-	db := &DB{
-		InstanceParams:        CommonDefaults,
-		ProfileInstanceParams: DevelopmentDefaults,
-	}
-	return db
-}
 
 type RDSManager interface {
 	Create(db *DB, defaults *DB) (*DB, error)
@@ -115,31 +101,6 @@ func (r *Manager) Stop() {
 	r.wait.Wait()
 	// Release all remaining resources.
 	r.stop = nil
-}
-
-// CreateProductionInstance creates an RDS Instance from a supplied DB object with production defaults
-func (r *Manager) CreateProductionInstance(db *DB) (*DB, error) {
-	Defaults := SetProductionDefaults()
-	database, err := r.Create(db, Defaults)
-	return database, err
-}
-
-// CreateDevelopmentInstance creates an RDS Instance from a supplied DB object with production defaults
-func (r *Manager) CreateDevelopmentInstance(db *DB) (*DB, error) {
-	Defaults := SetDevelopmentDefaults()
-	database, err := r.Create(db, Defaults)
-	return database, err
-}
-
-// Create a DB Instance given a profile
-func (r *Manager) CreateDBInstance(db *DB, profile int) (*DB, error) {
-	if profile == Production {
-		database, err := r.CreateProductionInstance(db)
-		return database, err
-	} else {
-		database, err := r.CreateDevelopmentInstance(db)
-		return database, err
-	}
 }
 
 // Create an RDS Instance from a supplied DB object

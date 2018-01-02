@@ -79,7 +79,7 @@ func TestCreate(t *testing.T) {
 			}
 			rds := NewManager(svc)
 
-			db, err := rds.CreateProductionInstance(DBInput)
+			db, err := rds.Create(DBInput, ProductionDefaults)
 			if err != tC.err {
 				t.Errorf("Expected error to be %v, got %v", tC.err, err)
 			}
