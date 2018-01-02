@@ -1,14 +1,18 @@
 ---
 version: '2.3'
+    
 services:
   base: &base
     volumes:
       - .:/go/src/github.com/MYOB-Technology/ops-kube-db-operator
+      - $HOME/.kube:/root/.kube
+      - $HOME/.aws:/root/.aws
     working_dir: /go/src/github.com/MYOB-Technology/ops-kube-db-operator
-    build: 
-      context: .
-      target: dep
-
+    image: myobplatform/go-dep:1.9
+    environment:
+      KUBECONFIG: "/root/.kube/config"
+      AWS_REGION: "ap-southeast-2"
+      
   go:
     <<: *base
     entrypoint: go
@@ -16,3 +20,19 @@ services:
   dep:
     <<: *base
     entrypoint: dep
+
+  console:
+    <<: *base
+    command: "/bin/bash"
+
+  gofmt:
+    <<: *base
+    entrypoint: gofmt
+
+  goimports:
+    <<: *base
+    entrypoint: goimports
+
+  gometalinter:
+    <<: *base
+    entrypoint: gometalinter
