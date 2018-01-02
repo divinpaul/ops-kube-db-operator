@@ -8,6 +8,9 @@ addons:
 services:
   - docker
 
+before_install:
+  - make clean
+
 script:
   - make test
 

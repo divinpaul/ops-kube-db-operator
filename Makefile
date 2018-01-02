@@ -1,12 +1,15 @@
-.PHONY: publish publish-version login
+.PHONY: publish publish-version login test clean
 
 REPO := myobplatform/ops-kube-db-operator
 
-test: deps
+test: vendor
 	docker-compose run go test ./...
 
-deps:
+vendor:
 	docker-compose run dep ensure -v
+
+clean:
+	docker-compose run base rm -rf vendor
 
 ifdef DOCKERHUB_PASSWORD
 login:
