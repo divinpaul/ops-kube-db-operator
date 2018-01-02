@@ -63,6 +63,12 @@ func SetDevelopmentDefaults() *DB {
 	return db
 }
 
+type RDSManager interface {
+	Create(db *DB, defaults *DB) (*DB, error)
+	Delete(name string) (*DB, error)
+	Stat(name string) (*DB, error)
+}
+
 // Manager uses a svc to talk to AWS RDS
 type Manager struct {
 	Client  rdsiface.RDSAPI

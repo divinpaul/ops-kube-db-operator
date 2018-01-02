@@ -20,6 +20,12 @@ import (
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/pgdb"
 )
 
+type Worker interface {
+	OnCreate(obj interface{})
+	OnUpdate(obj interface{}, newObj interface{})
+	OnDelete(obj interface{})
+}
+
 // PgController is a controller for Postgres RDS DBs.
 type PgController struct {
 	// client is the standart kubernetes clientset

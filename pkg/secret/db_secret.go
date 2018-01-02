@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/kubernetes"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	apiv1 "k8s.io/client-go/pkg/api/v1"
 )
 
@@ -62,7 +62,7 @@ func FromKubeSecret(obj *apiv1.Secret) *DBSecret {
 	}
 }
 
-func NewOrGet(client *kubernetes.Clientset, namespace, name string) (bool, *DBSecret, error) {
+func NewOrGet(client corev1.SecretsGetter, namespace, name string) (bool, *DBSecret, error) {
 	obj, err := client.Secrets(namespace).Get(name, metav1.GetOptions{})
 
 	if err != nil && errors.IsNotFound(err) {
@@ -76,7 +76,7 @@ func NewOrGet(client *kubernetes.Clientset, namespace, name string) (bool, *DBSe
 	return true, FromKubeSecret(obj), nil
 }
 
-func SaveOrCreate(client *kubernetes.Clientset, secret *DBSecret) error {
+func SaveOrCreate(client corev1.SecretsGetter, secret *DBSecret) error {
 	obj, err := client.Secrets(secret.Namespace).Get(secret.Name, metav1.GetOptions{})
 
 	if err != nil && errors.IsNotFound(err) {
