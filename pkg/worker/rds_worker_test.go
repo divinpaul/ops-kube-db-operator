@@ -42,13 +42,14 @@ var (
 	defaultMockCrds      = fakeCrd.NewSimpleClientset()
 	defaultMockClientSet = fake.NewSimpleClientset()
 	defaultMockMgr       = &mockManager{shouldErrorCreate: false}
+	defaultRdsConfig     = &worker.RDSConfig{}
 )
 
 func TestCreateFunction(t *testing.T) {
 	defaultMockCrds.ClearActions()
 	defaultMockClientSet.ClearActions()
 
-	wrkr := worker.NewRDSWorker(defaultMockMgr, defaultMockClientSet, defaultMockCrds.PostgresdbV1alpha1())
+	wrkr := worker.NewRDSWorker(defaultMockMgr, defaultMockClientSet, defaultMockCrds.PostgresdbV1alpha1(), defaultRdsConfig)
 	crd := crds.PostgresDB{}
 	crd.ObjectMeta.Name = "crdname"
 	crd.ObjectMeta.Namespace = "test-namespace"
@@ -71,7 +72,7 @@ func TestCreateFunctionWithCreateDBError(t *testing.T) {
 	defaultMockCrds.ClearActions()
 	defaultMockClientSet.ClearActions()
 
-	wrkr := worker.NewRDSWorker(&mockManager{shouldErrorCreate: true}, defaultMockClientSet, defaultMockCrds.PostgresdbV1alpha1())
+	wrkr := worker.NewRDSWorker(&mockManager{shouldErrorCreate: true}, defaultMockClientSet, defaultMockCrds.PostgresdbV1alpha1(), defaultRdsConfig)
 	crd := crds.PostgresDB{}
 	crd.ObjectMeta.Name = "crdname"
 	crd.ObjectMeta.Namespace = "test-namespace"

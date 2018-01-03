@@ -12,6 +12,13 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+type RDSConfig struct {
+	DefaultSize     string
+	DefaultStorage  int64
+	DBEnvironment   string
+	OperatorVersion string
+}
+
 // RDSWorker creates an RDS instance for every postres
 // DB requested. It containes all the config that will
 // change per env.
@@ -22,8 +29,7 @@ type RDSWorker struct {
 	crdClientset postgresdbv1alpha1.PostgresdbV1alpha1Interface
 
 	// env config
-	backupRetentionPeriod int64
-	multiAZ               bool
+	config *RDSConfig
 }
 
 func (w *RDSWorker) OnCreate(obj interface{}) {
@@ -41,28 +47,38 @@ func (w *RDSWorker) OnCreate(obj interface{}) {
 	masterScrt.Password = creds[1]
 	secret.SaveOrCreate(w.clientset.CoreV1(), masterScrt)
 
-	// tags := []*db.Tag{
-	// 	&db.Tag{
-	// 		Key:   &string("Namespace"),
-	// 		Value: crdNamespace,
-	// 	},
-	// 	&db.Tag{
-	// 		Key:   "Resource",
-	// 		Value: crdName,
-	// 	},
-	// 	&db.Tag{
-	// 		Key:   "CreatedBy",
-	// 		Value: "ops-kube-db-operator",
-	// 	},
-	// }
+	tags := make([]*db.Tag, 5)
 
-	// TODO: make this env passed in
+	tags = append(tags, tag("Namespace", crdNamespace))
+	tags = append(tags, tag("Resource", crdName))
+	tags = append(tags, tag("DBEnvironment", w.config.DBEnvironment))
+	tags = append(tags, tag("CreatedBy", "ops-kube-db-operator"))
+	tags = append(tags, tag("OperatorVersion", w.config.OperatorVersion))
+
+	// set env defaults for database
+	dbDefaults := db.DevelopmentDefaults
+	if w.config.DBEnvironment == "production" {
+		dbDefaults = db.ProductionDefaults
+	}
+
+	dbSize := w.config.DefaultSize
+	if crd.Spec.Size != "" {
+		dbSize = crd.Spec.Size
+	}
+
+	dbStorage := w.config.DefaultStorage
+	if crd.Spec.Storage != 0 {
+		dbStorage = crd.Spec.Storage
+	}
+
 	createdDB, err := w.rds.Create(&db.DB{
 		Name:               &dbName,
 		MasterUsername:     &masterScrt.Username,
 		MasterUserPassword: &masterScrt.Password,
-		// Tags:               tags,
-	}, db.ProductionDefaults)
+		DBInstanceClass:    &dbSize,
+		StorageAllocatedGB: &dbStorage,
+		Tags:               tags,
+	}, dbDefaults)
 
 	if err != nil {
 		crd.Status.Ready = fmt.Sprintf("Error creating Database: %s", err.Error())
@@ -121,10 +137,18 @@ func (w *RDSWorker) OnDelete(obj interface{}) {
 	// TODO: fix no op
 }
 
-func NewRDSWorker(rds db.RDSManager, clientSet kubernetes.Interface, crdClientset postgresdbv1alpha1.PostgresdbV1alpha1Interface) *RDSWorker {
+func NewRDSWorker(rds db.RDSManager, clientSet kubernetes.Interface, crdClientset postgresdbv1alpha1.PostgresdbV1alpha1Interface, config *RDSConfig) *RDSWorker {
 	return &RDSWorker{
 		rds:          rds,
 		clientset:    clientSet,
 		crdClientset: crdClientset,
+		config:       config,
+	}
+}
+
+func tag(key, val string) *db.Tag {
+	return &db.Tag{
+		Key:   &key,
+		Value: &val,
 	}
 }

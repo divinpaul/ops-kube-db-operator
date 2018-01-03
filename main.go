@@ -25,6 +25,7 @@ import (
 )
 
 var version = "snapshot"
+var dbEnvironment string
 
 func main() {
 	flag.Parse()
@@ -66,11 +67,21 @@ func main() {
 
 	session := session.New(aws.NewConfig())
 	manager := db.NewManager(rds.New(session))
-	rdsWorker := worker.NewRDSWorker(manager, k8sClient, dbClient.PostgresdbV1alpha1())
+	rdsConfig := &worker.RDSConfig{
+		OperatorVersion: version,
+		DefaultSize:     "t1.Small", // hardcoded for now
+		DefaultStorage:  5,          // hardcoded for now
+		DBEnvironment:   dbEnvironment,
+	}
+	rdsWorker := worker.NewRDSWorker(manager, k8sClient, dbClient.PostgresdbV1alpha1(), rdsConfig)
 
 	dbInformerFactory := informers.NewSharedInformerFactory(dbClient, time.Second*30)
 	go dbInformerFactory.Start(stopCh)
 
 	rdsController := controller.New(dbInformerFactory, rdsWorker)
 	rdsController.Run(stopCh)
+}
+
+func init() {
+	flag.StringVar(&dbEnvironment, "dbenv", "development", "Environment for creating RDS instances (production|development).")
 }
