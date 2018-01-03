@@ -3,13 +3,13 @@
 REPO := myobplatform/ops-kube-db-operator
 
 test: vendor
-	docker-compose run go test ./...
+	docker-compose run --rm go test ./...
 
 vendor:
-	docker-compose run dep ensure -v
+	docker-compose run --rm dep ensure -v
 
 clean:
-	docker-compose run base rm -rf vendor
+	docker-compose run --rm base rm -rf vendor
 
 ifdef DOCKERHUB_PASSWORD
 login:

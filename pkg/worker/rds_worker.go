@@ -27,7 +27,7 @@ type RDSWorker struct {
 }
 
 func (w *RDSWorker) OnCreate(obj interface{}) {
-	crd := obj.(crds.PostgresDB)
+	crd := obj.(*crds.PostgresDB)
 	crdName := crd.ObjectMeta.Name
 	crdNamespace := crd.ObjectMeta.Namespace
 	dbName := fmt.Sprintf("k8s-%s-%s", crdNamespace, crdName)
@@ -41,15 +41,37 @@ func (w *RDSWorker) OnCreate(obj interface{}) {
 	masterScrt.Password = creds[1]
 	secret.SaveOrCreate(w.clientset.CoreV1(), masterScrt)
 
+	// tags := []*db.Tag{
+	// 	&db.Tag{
+	// 		Key:   &string("Namespace"),
+	// 		Value: crdNamespace,
+	// 	},
+	// 	&db.Tag{
+	// 		Key:   "Resource",
+	// 		Value: crdName,
+	// 	},
+	// 	&db.Tag{
+	// 		Key:   "CreatedBy",
+	// 		Value: "ops-kube-db-operator",
+	// 	},
+	// }
+
 	// TODO: make this env passed in
-	createdDB, _ := w.rds.Create(&db.DB{
+	createdDB, err := w.rds.Create(&db.DB{
 		Name:               &dbName,
 		MasterUsername:     &masterScrt.Username,
 		MasterUserPassword: &masterScrt.Password,
+		// Tags:               tags,
 	}, db.ProductionDefaults)
 
+	if err != nil {
+		crd.Status.Ready = fmt.Sprintf("Error creating Database: %s", err.Error())
+		w.crdClientset.PostgresDBs(crdNamespace).Update(crd)
+		return
+	}
+
 	crd.Status.ARN = *createdDB.ARN
-	w.crdClientset.PostgresDBs(crdNamespace).UpdateStatus(&crd)
+	w.crdClientset.PostgresDBs(crdNamespace).Update(crd)
 
 	// wait for DB to become ready and timeout after 20 mins
 	timeoutCount := 0
@@ -57,7 +79,7 @@ func (w *RDSWorker) OnCreate(obj interface{}) {
 	for {
 		statDB, _ = w.rds.Stat(dbName)
 		crd.Status.Ready = *statDB.Status
-		w.crdClientset.PostgresDBs(crdNamespace).UpdateStatus(&crd)
+		w.crdClientset.PostgresDBs(crdNamespace).Update(crd)
 
 		if *statDB.Status == db.StatusAvailable {
 			break
@@ -66,7 +88,7 @@ func (w *RDSWorker) OnCreate(obj interface{}) {
 		timeoutCount++
 		if timeoutCount > 40 {
 			crd.Status.Ready = "Timed out while waiting for the DB to become available."
-			w.crdClientset.PostgresDBs(crdNamespace).UpdateStatus(&crd)
+			w.crdClientset.PostgresDBs(crdNamespace).Update(crd)
 			return
 		}
 
