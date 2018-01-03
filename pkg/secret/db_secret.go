@@ -29,6 +29,36 @@ type DBSecret struct {
 	Username     string
 	DatabaseName string
 	InstanceName string
+
+	client corev1.SecretsGetter
+}
+
+func (d *DBSecret) Save() error {
+	obj, err := d.client.Secrets(d.Namespace).Get(d.Name, metav1.GetOptions{})
+
+	if err != nil && errors.IsNotFound(err) {
+		obj = &apiv1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: d.Namespace,
+				Name:      d.Name,
+			},
+			StringData: d.Map(),
+		}
+		obj, err = d.client.Secrets(d.Namespace).Create(obj)
+
+		return err
+	} else if err != nil {
+		return err
+	}
+
+	obj.StringData = d.Map()
+	obj, err = d.client.Secrets(d.Namespace).Update(obj)
+
+	return err
+}
+
+func (d *DBSecret) Delete() error {
+	return d.client.Secrets(d.Namespace).Delete(d.Name, &metav1.DeleteOptions{})
 }
 
 // Setup stringer interface for printing
@@ -49,8 +79,18 @@ func (d *DBSecret) Map() map[string]string {
 	}
 }
 
-func FromKubeSecret(obj *apiv1.Secret) *DBSecret {
-	return &DBSecret{
+func NewOrGet(client corev1.SecretsGetter, namespace, name string) (*DBSecret, error) {
+	obj, err := client.Secrets(namespace).Get(name, metav1.GetOptions{})
+
+	if err != nil && errors.IsNotFound(err) {
+		return &DBSecret{Name: name, Namespace: namespace, client: client}, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	dbSecret := &DBSecret{
 		Name:         obj.Name,
 		Namespace:    obj.Namespace,
 		Host:         string(obj.Data[HOST]),
@@ -59,43 +99,8 @@ func FromKubeSecret(obj *apiv1.Secret) *DBSecret {
 		Password:     string(obj.Data[PASSWORD]),
 		DatabaseName: string(obj.Data[NAME]),
 		InstanceName: string(obj.Data[INSTANCE]),
-	}
-}
-
-func NewOrGet(client corev1.SecretsGetter, namespace, name string) (bool, *DBSecret, error) {
-	obj, err := client.Secrets(namespace).Get(name, metav1.GetOptions{})
-
-	if err != nil && errors.IsNotFound(err) {
-		return false, &DBSecret{Name: name, Namespace: namespace}, nil
+		client:       client,
 	}
 
-	if err != nil {
-		return false, nil, err
-	}
-
-	return true, FromKubeSecret(obj), nil
-}
-
-func SaveOrCreate(client corev1.SecretsGetter, secret *DBSecret) error {
-	obj, err := client.Secrets(secret.Namespace).Get(secret.Name, metav1.GetOptions{})
-
-	if err != nil && errors.IsNotFound(err) {
-		obj = &apiv1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: secret.Namespace,
-				Name:      secret.Name,
-			},
-			StringData: secret.Map(),
-		}
-		obj, err = client.Secrets(secret.Namespace).Create(obj)
-
-		return err
-	} else if err != nil {
-		return err
-	}
-
-	obj.StringData = secret.Map()
-	obj, err = client.Secrets(secret.Namespace).Update(obj)
-
-	return err
+	return dbSecret, nil
 }
