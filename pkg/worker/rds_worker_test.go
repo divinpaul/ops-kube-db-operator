@@ -6,15 +6,14 @@ import (
 
 	crds "github.com/MYOB-Technology/ops-kube-db-operator/pkg/apis/postgresdb/v1alpha1"
 	fakeCrd "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned/fake"
-	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/db"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/worker"
 
 	_ "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-type mockManager struct {
-	db.RDSManager
+type mockInstanceCommands struct {
+	rds.InstanceCommands
 	createdDB         *db.DB
 	shouldErrorCreate bool
 }
@@ -27,15 +26,6 @@ func (m *mockManager) Create(db *db.DB, def *db.DB) (*db.DB, error) {
 	m.createdDB = db
 	db.ARN = &arn
 	return db, nil
-}
-
-func (m *mockManager) Stat(name string) (*db.DB, error) {
-	var port int64 = 5432
-	address := "db-address"
-	m.createdDB.Status = &db.StatusAvailable
-	m.createdDB.Address = &address
-	m.createdDB.Port = &port
-	return m.createdDB, nil
 }
 
 var (
@@ -86,8 +76,8 @@ func TestCreateFunctionWithCreateDBError(t *testing.T) {
 		t.Errorf("There are not 1 crd actions: %s", crdActions)
 	}
 
-	if len(k8sActions) != 3 {
-		t.Errorf("There are not 3 k8s actions: %s", k8sActions)
+	if len(k8sActions) != 4 {
+		t.Errorf("There are not 4 k8s actions: %s", k8sActions)
 	}
 
 	if crd.Status.Ready != "Error creating Database: test error" {

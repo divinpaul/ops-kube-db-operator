@@ -11,15 +11,11 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/rds"
-
 	clientset "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
 	informers "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions"
 
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/controller"
-	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/db"
+	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/rds"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/signals"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/worker"
 )
@@ -65,8 +61,7 @@ func main() {
 		glog.Fatalf("Error building CRD clientset: %s", err.Error())
 	}
 
-	session := session.New(aws.NewConfig())
-	manager := db.NewManager(rds.New(session))
+	manager := rds.NewDBInstanceManager()
 	rdsConfig := &worker.RDSConfig{
 		OperatorVersion: version,
 		DefaultSize:     "t1.Small", // hardcoded for now

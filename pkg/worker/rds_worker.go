@@ -2,14 +2,19 @@ package worker
 
 import (
 	"fmt"
-	"time"
+
+	"github.com/golang/glog"
 
 	crds "github.com/MYOB-Technology/ops-kube-db-operator/pkg/apis/postgresdb/v1alpha1"
 	postgresdbv1alpha1 "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned/typed/postgresdb/v1alpha1"
-	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/db"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/postgres"
+	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/rds"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/secret"
 	"k8s.io/client-go/kubernetes"
+)
+
+const (
+	OperatorAdminNamespace = "kube-system"
 )
 
 type RDSConfig struct {
@@ -24,7 +29,7 @@ type RDSConfig struct {
 // change per env.
 type RDSWorker struct {
 	// injected deps for testing
-	rds          db.RDSManager
+	rds          rds.DBInstanceCreator
 	clientset    kubernetes.Interface
 	crdClientset postgresdbv1alpha1.PostgresdbV1alpha1Interface
 
@@ -34,99 +39,80 @@ type RDSWorker struct {
 
 func (w *RDSWorker) OnCreate(obj interface{}) {
 	crd := obj.(*crds.PostgresDB)
-	crdName := crd.ObjectMeta.Name
-	crdNamespace := crd.ObjectMeta.Namespace
-	dbName := fmt.Sprintf("k8s-%s-%s", crdNamespace, crdName)
-	masterSecretName := fmt.Sprintf("%s-master", dbName)
-	adminSecretName := fmt.Sprintf("%s-admin", dbName)
+	dbName := fmt.Sprintf("%s-%s", crd.ObjectMeta.Name, crd.GetUID())
+	masterSecretName := fmt.Sprintf("%s-master", crd.ObjectMeta.Name)
+	adminSecretName := fmt.Sprintf("%s-admin", crd.ObjectMeta.Name)
 
 	// Create and save master password secret first
-	_, masterScrt, _ := secret.NewOrGet(w.clientset.CoreV1(), "kube-system", masterSecretName)
-	creds, _ := postgres.GenPasswords(2, 20)
-	masterScrt.Username = creds[0]
-	masterScrt.Password = creds[1]
-	secret.SaveOrCreate(w.clientset.CoreV1(), masterScrt)
+	glog.Infof("Creating master secret for database %s...", dbName)
+	masterScrt, _ := secret.NewOrGet(w.clientset.CoreV1(), OperatorAdminNamespace, masterSecretName)
+	creds, _ := postgres.GenPasswords(1, 30)
+	masterScrt.Username = "master"
+	masterScrt.Password = creds[0]
 
-	tags := make([]*db.Tag, 5)
+	crd.Status.Ready = fmt.Sprintf("Creating database %s...", dbName)
+	w.crdClientset.PostgresDBs(crd.ObjectMeta.Namespace).Update(crd)
 
-	tags = append(tags, tag("Namespace", crdNamespace))
-	tags = append(tags, tag("Resource", crdName))
-	tags = append(tags, tag("DBEnvironment", w.config.DBEnvironment))
-	tags = append(tags, tag("CreatedBy", "ops-kube-db-operator"))
-	tags = append(tags, tag("OperatorVersion", w.config.OperatorVersion))
-
-	// set env defaults for database
-	dbDefaults := db.DevelopmentDefaults
-	if w.config.DBEnvironment == "production" {
-		dbDefaults = db.ProductionDefaults
-	}
-
-	dbSize := w.config.DefaultSize
-	if crd.Spec.Size != "" {
-		dbSize = crd.Spec.Size
-	}
-
-	dbStorage := w.config.DefaultStorage
-	if crd.Spec.Storage != 0 {
-		dbStorage = crd.Spec.Storage
-	}
-
-	createdDB, err := w.rds.Create(&db.DB{
-		Name:               &dbName,
-		MasterUsername:     &masterScrt.Username,
-		MasterUserPassword: &masterScrt.Password,
-		DBInstanceClass:    &dbSize,
-		StorageAllocatedGB: &dbStorage,
-		Tags:               tags,
-	}, dbDefaults)
+	glog.Infof("Creating database %s...", dbName)
+	createdDB, err := w.rds.Create(&rds.CreateInstanceInput{
+		InstanceName:   dbName,
+		Storage:        crd.Spec.Storage,
+		Size:           crd.Spec.Size,
+		MasterPassword: masterScrt.Password,
+		MasterUsername: masterScrt.Username,
+		Backups:        false,
+		MultiAZ:        false,
+		Tags: map[string]string{
+			"Namespace":                crd.ObjectMeta.Namespace,
+			"Resource":                 crd.ObjectMeta.Name,
+			"DBEnvironment":            w.config.DBEnvironment,
+			"CreatedBy":                "ops-kube-db-operator",
+			"CreatedByOperatorVersion": w.config.OperatorVersion,
+		},
+	})
 
 	if err != nil {
+		glog.Errorf("There was an error creating database %s: %s", dbName, err.Error())
 		crd.Status.Ready = fmt.Sprintf("Error creating Database: %s", err.Error())
-		w.crdClientset.PostgresDBs(crdNamespace).Update(crd)
+		w.crdClientset.PostgresDBs(crd.ObjectMeta.Namespace).Update(crd)
 		return
 	}
 
-	crd.Status.ARN = *createdDB.ARN
-	w.crdClientset.PostgresDBs(crdNamespace).Update(crd)
+	crd.Status.Ready = "available"
+	crd.Status.ARN = createdDB.ARN
+	w.crdClientset.PostgresDBs(crd.ObjectMeta.Namespace).Update(crd)
 
-	// wait for DB to become ready and timeout after 20 mins
-	timeoutCount := 0
-	var statDB *db.DB
-	for {
-		statDB, _ = w.rds.Stat(dbName)
-		crd.Status.Ready = *statDB.Status
-		w.crdClientset.PostgresDBs(crdNamespace).Update(crd)
-
-		if *statDB.Status == db.StatusAvailable {
-			break
-		}
-
-		timeoutCount++
-		if timeoutCount > 40 {
-			crd.Status.Ready = "Timed out while waiting for the DB to become available."
-			w.crdClientset.PostgresDBs(crdNamespace).Update(crd)
-			return
-		}
-
-		time.Sleep(30 * time.Second)
+	if createdDB.AlreadyExists {
+		glog.Infof("Database %s already exists, so finishing...", dbName)
+		return
 	}
 
 	// update master secret
-	masterScrt.Host = *statDB.Address
-	masterScrt.Port = string(*statDB.Port)
+	glog.Infof("Updating master secret for database %s with address...", dbName)
+	masterScrt.Host = createdDB.Address
+	masterScrt.Port = string(createdDB.Port)
 	masterScrt.DatabaseName = "postgres"
-	secret.SaveOrCreate(w.clientset.CoreV1(), masterScrt)
+	glog.Infof("Saving secret %s...", masterScrt)
+	masterScrt.Save()
 
 	// TODO: use postgres package to create new database and db users
 
-	// create db users in crd namespace
-	_, adminScrt, _ := secret.NewOrGet(w.clientset.CoreV1(), crdNamespace, adminSecretName)
+	// create db secrets in crd namespace
+	glog.Infof("Creating admin secret for database %s...", dbName)
+	adminScrt, _ := secret.NewOrGet(w.clientset.CoreV1(), crd.ObjectMeta.Namespace, adminSecretName)
 	adminScrt.Username = masterScrt.Username
 	adminScrt.Password = masterScrt.Password
-	adminScrt.Host = *statDB.Address
-	adminScrt.Port = string(*statDB.Port)
+	adminScrt.Host = masterScrt.Host
+	adminScrt.Port = masterScrt.Port
 	adminScrt.DatabaseName = "postgres"
-	secret.SaveOrCreate(w.clientset.CoreV1(), adminScrt)
+	glog.Infof("Saving secret %s...", adminScrt)
+	adminScrt.Save()
+
+	// TODO: Create secret in shadow ns for exporter
+
+	// TODO: Create postgres exporter deployment in shadow ns
+
+	// TODO: Create RDS Cloudwatch metrics exporter (TBD) deployment in shadow ns
 }
 
 func (w *RDSWorker) OnUpdate(obj interface{}, newObj interface{}) {
@@ -137,18 +123,11 @@ func (w *RDSWorker) OnDelete(obj interface{}) {
 	// TODO: fix no op
 }
 
-func NewRDSWorker(rds db.RDSManager, clientSet kubernetes.Interface, crdClientset postgresdbv1alpha1.PostgresdbV1alpha1Interface, config *RDSConfig) *RDSWorker {
+func NewRDSWorker(rds rds.DBInstanceCreator, clientSet kubernetes.Interface, crdClientset postgresdbv1alpha1.PostgresdbV1alpha1Interface, config *RDSConfig) *RDSWorker {
 	return &RDSWorker{
 		rds:          rds,
 		clientset:    clientSet,
 		crdClientset: crdClientset,
 		config:       config,
-	}
-}
-
-func tag(key, val string) *db.Tag {
-	return &db.Tag{
-		Key:   &key,
-		Value: &val,
 	}
 }
