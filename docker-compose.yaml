@@ -5,6 +5,7 @@ services:
     volumes:
       - .:/go/src/github.com/MYOB-Technology/ops-kube-db-operator
       - $HOME/.kube:/root/.kube
+      - $HOME/.aws:/root/.aws
     working_dir: /go/src/github.com/MYOB-Technology/ops-kube-db-operator
     build:
       context: .
