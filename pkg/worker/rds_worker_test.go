@@ -6,32 +6,35 @@ import (
 
 	crds "github.com/MYOB-Technology/ops-kube-db-operator/pkg/apis/postgresdb/v1alpha1"
 	fakeCrd "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned/fake"
+	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/rds"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/worker"
 
 	_ "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-type mockInstanceCommands struct {
-	rds.InstanceCommands
-	createdDB         *db.DB
+type mockDBInstanceCreator struct {
+	rds.DBInstanceCreator
+	input *rds.CreateInstanceInput
+	output         *rds.CreateInstanceOutput
 	shouldErrorCreate bool
 }
 
-func (m *mockManager) Create(db *db.DB, def *db.DB) (*db.DB, error) {
+func (m *mockDBInstanceCreator) Create(input *rds.CreateInstanceInput) (*rds.CreateInstanceOutput, error) {
 	if m.shouldErrorCreate {
 		return nil, errors.New("test error")
 	}
-	arn := "test-arn"
-	m.createdDB = db
-	db.ARN = &arn
-	return db, nil
+	// arn := "test-arn"
+	m.input = input
+	return m.output{
+
+	}, nil
 }
 
 var (
 	defaultMockCrds      = fakeCrd.NewSimpleClientset()
 	defaultMockClientSet = fake.NewSimpleClientset()
-	defaultMockMgr       = &mockManager{shouldErrorCreate: false}
+	defaultMockDBInstanceCreator       = &mockDBInstanceCreator{shouldErrorCreate: false}
 	defaultRdsConfig     = &worker.RDSConfig{}
 )
 
@@ -39,7 +42,7 @@ func TestCreateFunction(t *testing.T) {
 	defaultMockCrds.ClearActions()
 	defaultMockClientSet.ClearActions()
 
-	wrkr := worker.NewRDSWorker(defaultMockMgr, defaultMockClientSet, defaultMockCrds.PostgresdbV1alpha1(), defaultRdsConfig)
+	wrkr := worker.NewRDSWorker(defaultMockDBInstanceCreator, defaultMockClientSet, defaultMockCrds.PostgresdbV1alpha1(), defaultRdsConfig)
 	crd := crds.PostgresDB{}
 	crd.ObjectMeta.Name = "crdname"
 	crd.ObjectMeta.Namespace = "test-namespace"
@@ -62,7 +65,7 @@ func TestCreateFunctionWithCreateDBError(t *testing.T) {
 	defaultMockCrds.ClearActions()
 	defaultMockClientSet.ClearActions()
 
-	wrkr := worker.NewRDSWorker(&mockManager{shouldErrorCreate: true}, defaultMockClientSet, defaultMockCrds.PostgresdbV1alpha1(), defaultRdsConfig)
+	wrkr := worker.NewRDSWorker(&mockDBInstanceCreator{shouldErrorCreate: true}, defaultMockClientSet, defaultMockCrds.PostgresdbV1alpha1(), defaultRdsConfig)
 	crd := crds.PostgresDB{}
 	crd.ObjectMeta.Name = "crdname"
 	crd.ObjectMeta.Namespace = "test-namespace"

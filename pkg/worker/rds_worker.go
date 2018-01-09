@@ -29,7 +29,7 @@ type RDSConfig struct {
 // change per env.
 type RDSWorker struct {
 	// injected deps for testing
-	rds          rds.DBInstanceCreator
+	dbInstanceCreator          rds.DBInstanceCreator
 	clientset    kubernetes.Interface
 	crdClientset postgresdbv1alpha1.PostgresdbV1alpha1Interface
 
@@ -54,7 +54,7 @@ func (w *RDSWorker) OnCreate(obj interface{}) {
 	w.crdClientset.PostgresDBs(crd.ObjectMeta.Namespace).Update(crd)
 
 	glog.Infof("Creating database %s...", dbName)
-	createdDB, err := w.rds.Create(&rds.CreateInstanceInput{
+	createdDB, err := w.dbInstanceCreator.Create(&rds.CreateInstanceInput{
 		InstanceName:   dbName,
 		Storage:        crd.Spec.Storage,
 		Size:           crd.Spec.Size,
@@ -123,9 +123,9 @@ func (w *RDSWorker) OnDelete(obj interface{}) {
 	// TODO: fix no op
 }
 
-func NewRDSWorker(rds rds.DBInstanceCreator, clientSet kubernetes.Interface, crdClientset postgresdbv1alpha1.PostgresdbV1alpha1Interface, config *RDSConfig) *RDSWorker {
+func NewRDSWorker(dbInstanceCreator rds.DBInstanceCreator, clientSet kubernetes.Interface, crdClientset postgresdbv1alpha1.PostgresdbV1alpha1Interface, config *RDSConfig) *RDSWorker {
 	return &RDSWorker{
-		rds:          rds,
+		dbInstanceCreator:          dbInstanceCreator,
 		clientset:    clientSet,
 		crdClientset: crdClientset,
 		config:       config,
