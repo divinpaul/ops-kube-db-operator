@@ -25,3 +25,7 @@ services:
   console:
     <<: *base
     command: "/bin/bash"
+
+  gofmt:
+    <<: *base
+    entrypoint: gofmt

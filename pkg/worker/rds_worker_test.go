@@ -9,10 +9,10 @@ import (
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/rds"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/worker"
 
-	_ "k8s.io/client-go/kubernetes"
-	k8sTesting "k8s.io/client-go/testing"
-	"k8s.io/client-go/kubernetes/fake"
 	"fmt"
+	_ "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/fake"
+	k8sTesting "k8s.io/client-go/testing"
 	"strings"
 )
 
@@ -128,10 +128,10 @@ func assertActions(t *testing.T, expected []expectedActions, actual []k8sTesting
 		}
 
 		if !action.Matches(expectedAction.verb, expectedAction.resource) {
-			t.Errorf("Expected verb:%s resource:%s to match for action[%d]: %s", expectedAction.verb, expectedAction.resource,  i, action)
+			t.Errorf("Expected verb:%s resource:%s to match for action[%d]: %s", expectedAction.verb, expectedAction.resource, i, action)
 		}
 
-		if expectedAction.name != "" && !containsField(action, "Name",  expectedAction.name) {
+		if expectedAction.name != "" && !containsField(action, "Name", expectedAction.name) {
 			t.Errorf("Expected action to have resource with Name:%s for action[%d]: %#v", expectedAction.name, i, action)
 		}
 	}

@@ -29,9 +29,9 @@ type RDSConfig struct {
 // change per env.
 type RDSWorker struct {
 	// injected deps for testing
-	dbInstanceCreator          rds.DBInstanceCreator
-	clientset    kubernetes.Interface
-	crdClientset postgresdbv1alpha1.PostgresdbV1alpha1Interface
+	dbInstanceCreator rds.DBInstanceCreator
+	clientset         kubernetes.Interface
+	crdClientset      postgresdbv1alpha1.PostgresdbV1alpha1Interface
 
 	// env config
 	config *RDSConfig
@@ -125,9 +125,9 @@ func (w *RDSWorker) OnDelete(obj interface{}) {
 
 func NewRDSWorker(dbInstanceCreator rds.DBInstanceCreator, clientSet kubernetes.Interface, crdClientset postgresdbv1alpha1.PostgresdbV1alpha1Interface, config *RDSConfig) *RDSWorker {
 	return &RDSWorker{
-		dbInstanceCreator:          dbInstanceCreator,
-		clientset:    clientSet,
-		crdClientset: crdClientset,
-		config:       config,
+		dbInstanceCreator: dbInstanceCreator,
+		clientset:         clientSet,
+		crdClientset:      crdClientset,
+		config:            config,
 	}
 }

@@ -28,3 +28,7 @@ publish-version:
 	docker build --build-arg VERSION=${TRAVIS_TAG} -t ${REPO}:${TRAVIS_TAG} .
 	docker push ${REPO}:${TRAVIS_TAG}
 endif
+
+gofmt:
+	@echo "+++ Formatting code with Gofmt"
+	@docker-compose run --rm gofmt -s -w ${GOFILES_NOVENDOR}
