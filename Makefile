@@ -5,6 +5,9 @@ PKG_DIR = github.com/MYOB-Technology/ops-kube-db-operator/pkg
 GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 GO_TEST_PKGS = $(shell docker-compose run go list ./... |grep -v $(PKG_DIR)/client |grep -v $(PKG_DIR)/signals |grep -v $(PKG_DIR)/apis )
 
+deps:
+	docker-compose run dep ensure -v
+
 test:
 	@docker-compose run --rm go test ${GO_TEST_PKGS}
 
@@ -49,3 +52,6 @@ lint:
 	--disable test \
 	--disable testify \
 	./... --debug
+
+code-gen:
+	@docker-compose run console ./bin/update-codegen.sh
