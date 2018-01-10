@@ -32,3 +32,7 @@ endif
 gofmt:
 	@echo "+++ Formatting code with Gofmt"
 	@docker-compose run --rm gofmt -s -w ${GOFILES_NOVENDOR}
+
+goimports:
+	@echo "+++ Checking imports with go imports"
+	@docker-compose run --rm goimports -e -l -w ${GOFILES_NOVENDOR}

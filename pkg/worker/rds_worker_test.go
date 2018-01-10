@@ -10,10 +10,11 @@ import (
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/worker"
 
 	"fmt"
+	"strings"
+
 	_ "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	k8sTesting "k8s.io/client-go/testing"
-	"strings"
 )
 
 type mockDBInstanceCreator struct {

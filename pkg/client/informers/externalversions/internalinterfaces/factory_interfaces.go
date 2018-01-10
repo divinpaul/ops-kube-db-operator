@@ -8,10 +8,11 @@ All Rights Reserved
 package internalinterfaces
 
 import (
+	time "time"
+
 	versioned "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	cache "k8s.io/client-go/tools/cache"
-	time "time"
 )
 
 type NewInformerFunc func(versioned.Interface, time.Duration) cache.SharedIndexInformer

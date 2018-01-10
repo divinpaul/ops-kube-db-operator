@@ -29,3 +29,7 @@ services:
   gofmt:
     <<: *base
     entrypoint: gofmt
+
+  goimports:
+    <<: *base
+    entrypoint: goimports
