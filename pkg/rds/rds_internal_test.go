@@ -32,13 +32,13 @@ func (r *mockRDSApi) WaitUntilDBInstanceAvailable(input *awsrds.DescribeDBInstan
 	return r.waitFunc(input)
 }
 
-func newMockRDSApi() *mockRDSApi {
+func newMockRDSApi(createOutput *awsrds.CreateDBInstanceOutput) *mockRDSApi {
 	return &mockRDSApi{
 		CreateCalled:   false,
 		DescribeCalled: false,
 		WaitCalled:     false,
 		createFunc: func(awsInput *awsrds.CreateDBInstanceInput) (*awsrds.CreateDBInstanceOutput, error) {
-			return &awsrds.CreateDBInstanceOutput{}, nil
+			return createOutput, nil
 		},
 		describeFunc: func(input *awsrds.DescribeDBInstancesInput) (*awsrds.DescribeDBInstancesOutput, error) {
 			return &awsrds.DescribeDBInstancesOutput{}, nil
@@ -50,10 +50,10 @@ func newMockRDSApi() *mockRDSApi {
 }
 
 func TestSuccessfulCreate(t *testing.T) {
-	mockRds := newMockRDSApi()
-	commander := &DBInstanceManager{client: mockRds}
+	mockRds := newMockRDSApi(&awsrds.CreateDBInstanceOutput{DBInstance: &awsrds.DBInstance{}})
+	dbManager := &DBInstanceManager{client: mockRds}
 
-	actual, err := commander.Create(&CreateInstanceInput{})
+	actual, err := dbManager.Create(&CreateInstanceInput{})
 
 	if err != nil {
 		t.Error(err)
