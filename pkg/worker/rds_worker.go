@@ -24,8 +24,8 @@ type RDSConfig struct {
 	OperatorVersion string
 }
 
-// RDSWorker creates an RDS instance for every postres
-// DB requested. It containes all the config that will
+// RDSWorker creates an RDS instance for every postgres
+// DB requested. It contains all the config that will
 // change per env.
 type RDSWorker struct {
 	// injected deps for testing
