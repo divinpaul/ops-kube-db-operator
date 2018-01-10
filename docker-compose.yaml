@@ -21,3 +21,7 @@ services:
   dep:
     <<: *base
     entrypoint: dep
+
+  console:
+    <<: *base
+    command: "/bin/bash"
