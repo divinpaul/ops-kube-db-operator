@@ -64,7 +64,7 @@ func (c *Conn) Exec(xs ...Sequence) (err error) {
 			}
 		}
 	}
-	return
+	return nil
 }
 
 // CreateDatabase creates a named database and owner, writer, and reader users.

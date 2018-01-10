@@ -33,3 +33,7 @@ services:
   goimports:
     <<: *base
     entrypoint: goimports
+
+  gometalinter:
+    <<: *base
+    entrypoint: gometalinter

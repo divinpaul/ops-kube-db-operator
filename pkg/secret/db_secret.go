@@ -44,7 +44,7 @@ func (d *DBSecret) Save() error {
 			},
 			StringData: d.Map(),
 		}
-		obj, err = d.client.Secrets(d.Namespace).Create(obj)
+		_, err = d.client.Secrets(d.Namespace).Create(obj)
 
 		return err
 	} else if err != nil {
@@ -52,7 +52,7 @@ func (d *DBSecret) Save() error {
 	}
 
 	obj.StringData = d.Map()
-	obj, err = d.client.Secrets(d.Namespace).Update(obj)
+	_, err = d.client.Secrets(d.Namespace).Update(obj)
 
 	return err
 }

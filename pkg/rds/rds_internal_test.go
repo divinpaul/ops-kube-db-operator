@@ -64,7 +64,7 @@ func TestSuccessfulCreate(t *testing.T) {
 	}
 
 	if actual.AlreadyExists {
-		t.Errorf("AlreadyExists is true when it should be false: %s", actual)
+		t.Errorf("AlreadyExists is true when it should be false: %v", actual)
 	}
 
 	if !mockRds.WaitCalled {

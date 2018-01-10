@@ -125,7 +125,7 @@ func assertActions(t *testing.T, expected []expectedActions, actual []k8sTesting
 	for i, action := range actual {
 		expectedAction := expected[i]
 		if expectedAction.namespace != action.GetNamespace() {
-			t.Errorf("Expected namespace:%s, got:%s for action[%d]: %s", expectedAction.namespace, i, action.GetNamespace(), action)
+			t.Errorf("Expected namespace:%s, got:%s for action[%d]: %s", expectedAction.namespace, action.GetNamespace(), i, action)
 		}
 
 		if !action.Matches(expectedAction.verb, expectedAction.resource) {

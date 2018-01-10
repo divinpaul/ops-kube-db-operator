@@ -36,3 +36,16 @@ gofmt:
 goimports:
 	@echo "+++ Checking imports with go imports"
 	@docker-compose run --rm goimports -e -l -w ${GOFILES_NOVENDOR}
+
+lint:
+	@echo "+++ Running gometalinter"
+	@docker-compose run --rm gometalinter \
+	--sort path \
+	--skip=client --skip=apis --skip=signals \
+	--deadline 300s \
+	--vendor \
+	--enable-all \
+	--disable lll \
+	--disable test \
+	--disable testify \
+	./... --debug

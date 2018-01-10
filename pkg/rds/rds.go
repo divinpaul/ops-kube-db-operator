@@ -70,14 +70,14 @@ func (a *DBInstanceManager) Create(input *CreateInstanceInput) (*CreateInstanceO
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
 			case awsrds.ErrCodeDBInstanceAlreadyExistsFault:
-				output, err := a.client.DescribeDBInstances(&awsrds.DescribeDBInstancesInput{
+				output, derr := a.client.DescribeDBInstances(&awsrds.DescribeDBInstancesInput{
 					DBInstanceIdentifier: db.DBInstance.DBInstanceIdentifier,
 				})
 
 				// TODO: Confirm the DB has our tags and we managed it, otherwise return an error
 
-				if err != nil {
-					return nil, err
+				if derr != nil {
+					return nil, derr
 				}
 
 				return &CreateInstanceOutput{
@@ -111,7 +111,7 @@ func (a *DBInstanceManager) Create(input *CreateInstanceInput) (*CreateInstanceO
 }
 
 func NewDBInstanceManager() *DBInstanceManager {
-	session := session.New(aws.NewConfig())
+	session, _ := session.NewSession(aws.NewConfig())
 	manager := &DBInstanceManager{client: awsrds.New(session)}
 	return manager
 }

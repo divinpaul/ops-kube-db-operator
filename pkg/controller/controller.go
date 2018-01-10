@@ -7,6 +7,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
+// Worker handles change events for CRDs
 type Worker interface {
 	OnCreate(obj interface{})
 	OnUpdate(obj interface{}, newObj interface{})

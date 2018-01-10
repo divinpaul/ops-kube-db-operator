@@ -45,10 +45,10 @@ func main() {
 	// if flag has not been passed and env not set, presume running in cluster
 	if kubeconfig != "" {
 		glog.Infof("using kubeconfig %v", kubeconfig)
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		config, _ = clientcmd.BuildConfigFromFlags("", kubeconfig)
 	} else {
 		glog.Infof("running inside cluster")
-		config, err = rest.InClusterConfig()
+		config, _ = rest.InClusterConfig()
 	}
 
 	k8sClient, err := kubernetes.NewForConfig(config)
