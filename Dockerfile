@@ -1,7 +1,6 @@
-FROM golang:1.9 as dep
-RUN go get -u github.com/golang/dep/cmd/dep
+FROM myobplatform/go-dep:1.9 as dep
 
-FROM golang:1.9 as builder
+FROM golang:1.9 as builder 
 COPY --from=dep /go/bin/dep /go/bin/dep
 WORKDIR /go/src/github.com/MYOB-Technology/ops-kube-db-operator
 COPY . /go/src/github.com/MYOB-Technology/ops-kube-db-operator

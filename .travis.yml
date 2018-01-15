@@ -8,8 +8,11 @@ addons:
 services:
   - docker
 
+before_install:
+  - make clean
+
 script:
-  - make test
+  - make ci
 
 after_success:
   - if [ "$TRAVIS_BRANCH" == "master" ]; then
