@@ -4,9 +4,9 @@ metadata:
   name: ops-kube-db-operator
   namespace: kube-system
 data:
-  aws.security.group.id: sg-2610f740
-  aws.subnet.group.name: test-rds-dataform
-  aws.kms.key.arn: arn:aws:kms:ap-southeast-2:693429498512:key/62b05a23-2f82-467f-b61e-0e55531a3540
+  aws.security.group.id: sg-95ed83f3
+  aws.subnet.group.name: cluster-development-vpc-dbsubnetgroup-1phyat6a25wh
+  aws.kms.key.arn: arn:aws:kms:ap-southeast-2:693429498512:key/0485c191-1e04-4a47-b6ff-fd90f2b15d23
   aws.rds.postgres.default.port: "5432"
   aws.rds.postgres.default.multiaz: "true"
   aws.rds.postgres.default.kms.encryption: "true"

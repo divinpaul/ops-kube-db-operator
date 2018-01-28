@@ -19,12 +19,13 @@ import (
 
 // DatabaseDescriptor describes a created database.
 type DatabaseDescriptor struct {
-	Host     string
-	Port     int
-	Database *Database
-	Admin    *User
-	Writer   *User
-	Reader   *User
+	Host            string
+	Port            int
+	Database        *Database
+	Admin           *User
+	Writer          *User
+	Reader          *User
+	MetricsExporter *User
 }
 
 // Conn is a connection to a Postgres server.
@@ -33,6 +34,21 @@ type Conn struct {
 	Port int
 	User *User
 	DB   *sql.DB
+}
+
+func NewMasterUser() (*User, error) {
+	pw, err := GenPasswords(1, 30)
+	if err != nil {
+		return nil, err
+	}
+
+	return &User{"master", pw[0]}, nil
+}
+
+// NewConn creates a new uninitialised Conn with the supplied host and user details.
+// DEPRECATED: to be replaced with NewConn method
+func NewRawConn(host string, port int64, user *User) (*Conn, error) {
+	return &Conn{host, int(port), &User{user.Name, user.Password}, nil}, nil
 }
 
 // NewConn creates a new Conn with the supplied host and user details.
@@ -65,6 +81,21 @@ func (c *Conn) Exec(xs ...Sequence) (err error) {
 		}
 	}
 	return nil
+}
+
+// CreateDatabaseDescriptor admin and metricsExporter users for the database.
+// DEPRECATED: to be replaced with CreateDatabase method
+func (c *Conn) CreateDatabaseDescriptor() (dd *DatabaseDescriptor, err error) {
+	dd = &DatabaseDescriptor{
+		Host:     c.Host,
+		Port:     c.Port,
+		Database: &Database{"postgres"},
+		// TODO: Generate appropriate users in database. Using master for now
+		Admin:           &User{c.User.Name, c.User.Password},
+		MetricsExporter: &User{c.User.Name, c.User.Password},
+	}
+
+	return dd, nil
 }
 
 // CreateDatabase creates a named database and owner, writer, and reader users.

@@ -1,0 +1,309 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-special-db-postgres-exporter
+  labels:
+    app: postgres-exporter
+    dbName: my-special-db
+    repo: ops-kube-db-operator
+type: Opaque
+data:
+  DB_PASSWORD:  cGFzc3dvcmQ=
+  DATABASE_URL: cG9zdGdyZXNxbDovL3Bvc3RncmVzOnBhc3N3b3JkQG15LXNwZWNpYWwtZGIua3ViZS1zeXN0ZW06NTQzMi8/c3NsbW9kZT1kaXNhYmxl
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-special-db-postgres-exporter
+  labels:
+    app: postgres-exporter
+    dbName: my-special-db
+    repo: ops-kube-db-operator
+data:
+  queries.yaml: |
+    pg_database:
+      metrics:
+      - datname:
+          description: Name of the database
+          usage: LABEL
+      - size:
+          description: Disk space used by the database
+          usage: GAUGE
+      query: ' SELECT pg_database.datname, pg_database_size(pg_database.datname) as size
+        FROM pg_database'
+    pg_postmaster:
+      metrics:
+      - start_time_seconds:
+          description: Time at which postmaster started
+          usage: GAUGE
+      query: SELECT pg_postmaster_start_time as start_time_seconds from pg_postmaster_start_time()
+    pg_replication:
+      metrics:
+      - lag:
+          description: Replication lag behind master in seconds
+          usage: GAUGE
+      query: SELECT EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp()))::INT
+        as lag
+    pg_stat_user_tables:
+      metrics:
+      - schemaname:
+          description: Name of the schema that this table is in
+          usage: LABEL
+      - relname:
+          description: Name of this table
+          usage: LABEL
+      - seq_scan:
+          description: Number of sequential scans initiated on this table
+          usage: COUNTER
+      - seq_tup_read:
+          description: Number of live rows fetched by sequential scans
+          usage: COUNTER
+      - idx_scan:
+          description: Number of index scans initiated on this table
+          usage: COUNTER
+      - idx_tup_fetch:
+          description: Number of live rows fetched by index scans
+          usage: COUNTER
+      - n_tup_ins:
+          description: Number of rows inserted
+          usage: COUNTER
+      - n_tup_upd:
+          description: Number of rows updated
+          usage: COUNTER
+      - n_tup_del:
+          description: Number of rows deleted
+          usage: COUNTER
+      - n_tup_hot_upd:
+          description: Number of rows HOT updated (i.e., with no separate index update
+            required)
+          usage: COUNTER
+      - n_live_tup:
+          description: Estimated number of live rows
+          usage: GAUGE
+      - n_dead_tup:
+          description: Estimated number of dead rows
+          usage: GAUGE
+      - n_mod_since_analyze:
+          description: Estimated number of rows changed since last analyze
+          usage: GAUGE
+      - last_vacuum:
+          description: Last time at which this table was manually vacuumed (not counting
+            VACUUM FULL)
+          usage: GAUGE
+      - last_autovacuum:
+          description: Last time at which this table was vacuumed by the autovacuum daemon
+          usage: GAUGE
+      - last_analyze:
+          description: Last time at which this table was manually analyzed
+          usage: GAUGE
+      - last_autoanalyze:
+          description: Last time at which this table was analyzed by the autovacuum daemon
+          usage: GAUGE
+      - vacuum_count:
+          description: Number of times this table has been manually vacuumed (not counting
+            VACUUM FULL)
+          usage: COUNTER
+      - autovacuum_count:
+          description: Number of times this table has been vacuumed by the autovacuum
+            daemon
+          usage: COUNTER
+      - analyze_count:
+          description: Number of times this table has been manually analyzed
+          usage: COUNTER
+      - autoanalyze_count:
+          description: Number of times this table has been analyzed by the autovacuum
+            daemon
+          usage: COUNTER
+      query: SELECT schemaname, relname, seq_scan, seq_tup_read, idx_scan, idx_tup_fetch,
+        n_tup_ins, n_tup_upd, n_tup_del, n_tup_hot_upd, n_live_tup, n_dead_tup, n_mod_since_analyze,
+        last_vacuum, last_autovacuum, last_analyze, last_autoanalyze, vacuum_count, autovacuum_count,
+        analyze_count, autoanalyze_count FROM pg_stat_user_tables
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-special-db-postgres-exporter
+  labels:
+    app: postgres-exporter
+    dbName: my-special-db
+    repo: ops-kube-db-operator
+  annotations:
+    prometheus.io/scrape: "true"
+spec:
+  ports:
+    - port: 9187
+      targetPort: 9187
+  selector:
+    app: postgres-exporter
+    dbName: my-special-db
+    repo: ops-kube-db-operator
+
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: my-special-db-postgres-exporter
+  labels:
+    app: postgres-exporter
+    dbName: my-special-db
+    repo: ops-kube-db-operator
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 100%
+  template:
+    metadata:
+      labels:
+        app: postgres-exporter
+        dbName: my-special-db
+        repo: ops-kube-db-operator
+        version: v0.4.1
+    spec:
+      containers:
+      - name: metrics
+        image: "wrouesnel/postgres_exporter:v0.4.1"
+        imagePullPolicy: Always
+        args: ["--extend.query-path=/etc/config/queries.yaml"]
+        env:
+        - name: DATA_SOURCE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: my-special-db-postgres-exporter
+              key: DATABASE_URL
+        ports:
+        - name: metrics
+          containerPort: 9187
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 9187
+          initialDelaySeconds: 60
+          timeoutSeconds: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 9187
+          initialDelaySeconds: 60
+          timeoutSeconds: 3
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/config
+      - name: debug-container
+        image: gcr.io/google_containers/busybox
+        imagePullPolicy: Always
+        args: ["tail", "-f", "/dev/null"]
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: my-special-db-postgres-exporter
+              key: DATABASE_URL
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/config
+      volumes:
+      - name: config-volume
+        configMap:
+          name: my-special-db-postgres-exporter
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-special-db
+  labels:
+    app: postgres
+    dbName: my-special-db
+    repo: ops-kube-db-operator
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: postgres
+    dbName: my-special-db
+    repo: ops-kube-db-operator
+
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: my-special-db
+  labels:
+    app: postgres
+    dbName: my-special-db
+    repo: ops-kube-db-operator
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 100%
+  template:
+    metadata:
+      labels:
+        app: postgres
+        dbName: my-special-db
+        repo: ops-kube-db-operator
+        version: 9.6.5
+    spec:
+      containers:
+      - name: postgres
+        image: "postgres:9.6.5"
+        imagePullPolicy: Always
+        env:
+        - name: POSTGRES_USER
+          value: postgres
+          # Required for pg_isready in the health probes.
+        - name: PGUSER
+          value: postgres
+        - name: POSTGRES_DB
+          value: my-special-db
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: my-special-db-postgres-exporter
+              key: DB_PASSWORD
+        ports:
+        - name: postgresql
+          containerPort: 5432
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+          initialDelaySeconds: 60
+          timeoutSeconds: 3
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+          initialDelaySeconds: 60
+          timeoutSeconds: 3
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data/pgdata
+      volumes:
+      - name: data
+        emptyDir: {}

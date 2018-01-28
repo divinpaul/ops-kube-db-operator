@@ -3,5 +3,5 @@ kind: PostgresDB
 metadata:
   name: example-db
 spec:
-    size: "db.t2.small"
-    storage: "10"
+  size: "db.t2.small"
+  storage: "10"

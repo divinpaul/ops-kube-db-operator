@@ -33,6 +33,7 @@ type DBSecret struct {
 	client corev1.SecretsGetter
 }
 
+// Save will save DBSecret as k8s secret
 func (d *DBSecret) Save() error {
 	obj, err := d.client.Secrets(d.Namespace).Get(d.Name, metav1.GetOptions{})
 
@@ -57,6 +58,7 @@ func (d *DBSecret) Save() error {
 	return err
 }
 
+// Delete will delete DBSecret k8s secret
 func (d *DBSecret) Delete() error {
 	return d.client.Secrets(d.Namespace).Delete(d.Name, &metav1.DeleteOptions{})
 }
@@ -75,10 +77,11 @@ func (d *DBSecret) Map() map[string]string {
 		INSTANCE: d.InstanceName,
 		USER:     d.Username,
 		PASSWORD: d.Password,
-		URL:      fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=require", d.Username, d.Password, d.Host, d.Port, d.DatabaseName),
+		URL:      fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=require", d.Username, d.Password, d.Host, d.Port, d.DatabaseName),
 	}
 }
 
+// NewOrGet returns existing DBSecret if present, else a new instance
 func NewOrGet(client corev1.SecretsGetter, namespace, name string) (*DBSecret, error) {
 	obj, err := client.Secrets(namespace).Get(name, metav1.GetOptions{})
 

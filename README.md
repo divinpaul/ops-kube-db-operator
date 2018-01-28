@@ -116,20 +116,29 @@ To verify access to the cluster, please read the docs [here](docs/ACCESS.md)
 * Set required AWS config in the configmap.
   * More information about the configurable parameters can be found [here](docs/CONFIGURATION.md)
 
+* apply the crd
+```bash
+❯ kubectl apply -f yaml/crd.yaml
+```
+
+* apply the settings config-map (make sure to edit it with settings to suit you)
 ```bash
 ❯ kubectl apply -f yaml/config-map.yaml
 ```
 
-* Install dependencies with glide
-
+* install dependencies
 ```bash
-❯ glide install
+❯ make vendor
 ```
 
 * run it
-
 ```bash
-❯ go run *.go -kubeconfig ~/.kube/config
+❯ make run
+```
+
+* create example db
+```bash
+❯ kubectl apply -f yaml/example.yaml -n <your_namespace>
 ```
 
 ### Auto Generating Client with Kubernetes code-generator

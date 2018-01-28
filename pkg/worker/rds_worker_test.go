@@ -33,28 +33,45 @@ func (m *mockDBInstanceCreator) Create(input *rds.CreateInstanceInput) (*rds.Cre
 }
 
 var (
-	defaultMockCrds              = fakeCrd.NewSimpleClientset()
-	defaultMockClientSet         = fake.NewSimpleClientset()
 	defaultMockDBInstanceCreator = &mockDBInstanceCreator{shouldErrorCreate: false}
 	defaultRdsConfig             = &worker.RDSConfig{}
 )
 
 func TestCreateFunction(t *testing.T) {
 	// Given
-	defaultMockCrds.ClearActions()
+	defaultMockCrds := fakeCrd.NewSimpleClientset()
 	expectedCrdActions := []expectedActions{
 		{namespace: "test-namespace", verb: "update", resource: "postgresdbs"},
 		{namespace: "test-namespace", verb: "update", resource: "postgresdbs"},
 	}
 
-	defaultMockClientSet.ClearActions()
+	defaultMockClientSet := fake.NewSimpleClientset()
 	expectedK8sActions := []expectedActions{
+		// Master secret initial save
 		{namespace: "kube-system", verb: "get", resource: "secrets", name: "crdname-master"},
 		{namespace: "kube-system", verb: "get", resource: "secrets", name: "crdname-master"},
 		{namespace: "kube-system", verb: "create", resource: "secrets"},
+		// Master secret update with rds instances
+		{namespace: "kube-system", verb: "get", resource: "secrets", name: "crdname-master"},
+		{namespace: "kube-system", verb: "get", resource: "secrets", name: "crdname-master"},
+		{namespace: "kube-system", verb: "update", resource: "secrets"},
+		// Admin secret save
 		{namespace: "test-namespace", verb: "get", resource: "secrets", name: "crdname-admin"},
 		{namespace: "test-namespace", verb: "get", resource: "secrets", name: "crdname-admin"},
 		{namespace: "test-namespace", verb: "create", resource: "secrets"},
+		// Metrics Exporter secret save
+		{namespace: "test-namespace-shadow", verb: "get", resource: "secrets", name: "crdname-metrics-exporter"},
+		{namespace: "test-namespace-shadow", verb: "get", resource: "secrets", name: "crdname-metrics-exporter"},
+		{namespace: "test-namespace-shadow", verb: "create", resource: "secrets"},
+		// Metrics Exporter config map save
+		{namespace: "test-namespace-shadow", verb: "get", resource: "configmaps", name: "crdname-metrics-exporter"},
+		{namespace: "test-namespace-shadow", verb: "create", resource: "configmaps"},
+		// Metrics Exporter service save
+		{namespace: "test-namespace-shadow", verb: "get", resource: "services", name: "crdname-metrics-exporter"},
+		{namespace: "test-namespace-shadow", verb: "create", resource: "services"},
+		// Metrics Exporter deployment save
+		{namespace: "test-namespace-shadow", verb: "get", resource: "deployments", name: "crdname-metrics-exporter"},
+		{namespace: "test-namespace-shadow", verb: "create", resource: "deployments"},
 	}
 
 	defaultMockDBInstanceCreator.output = &rds.CreateInstanceOutput{ARN: "test-arn"}
@@ -82,15 +99,17 @@ func TestCreateFunction(t *testing.T) {
 
 func TestCreateFunctionWithCreateDBError(t *testing.T) {
 	// Given
-	defaultMockCrds.ClearActions()
+	defaultMockCrds := fakeCrd.NewSimpleClientset()
 	expectedCrdActions := []expectedActions{
 		{namespace: "test-namespace", verb: "update", resource: "postgresdbs"},
 		{namespace: "test-namespace", verb: "update", resource: "postgresdbs"},
 	}
 
-	defaultMockClientSet.ClearActions()
+	defaultMockClientSet := fake.NewSimpleClientset()
 	expectedK8sActions := []expectedActions{
 		{namespace: "kube-system", verb: "get", resource: "secrets", name: "crdname-master"},
+		{namespace: "kube-system", verb: "get", resource: "secrets", name: "crdname-master"},
+		{namespace: "kube-system", verb: "create", resource: "secrets"},
 	}
 
 	wrkr := worker.NewRDSWorker(&mockDBInstanceCreator{shouldErrorCreate: true}, defaultMockClientSet, defaultMockCrds.PostgresdbV1alpha1(), defaultRdsConfig)
@@ -105,7 +124,7 @@ func TestCreateFunctionWithCreateDBError(t *testing.T) {
 	assertActions(t, expectedCrdActions, defaultMockCrds.Actions())
 	assertActions(t, expectedK8sActions, defaultMockClientSet.Actions())
 
-	if crd.Status.Ready != "Error creating Database: test error" {
+	if crd.Status.Ready != "Error creating database instance: test error" {
 		t.Errorf("CRD Status Ready not updated properly: %#v", crd.Status)
 	}
 }
@@ -119,7 +138,7 @@ type expectedActions struct {
 
 func assertActions(t *testing.T, expected []expectedActions, actual []k8sTesting.Action) {
 	if len(expected) != len(actual) {
-		t.Errorf("expected %d action(s): %s", len(expected), actual)
+		t.Fatalf("expected %d action(s): got(%d)[%s]", len(expected), len(actual), actual)
 	}
 
 	for i, action := range actual {

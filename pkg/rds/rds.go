@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
 )
 
+// CreateInstanceInput represents input data for RDS instance creation
 type CreateInstanceInput struct {
 	InstanceName   string
 	Storage        int64
@@ -22,6 +23,7 @@ type CreateInstanceInput struct {
 	Tags           map[string]string
 }
 
+// CreateInstanceInput represents output data from RDS instance creation
 type CreateInstanceOutput struct {
 	Name          string
 	ARN           string
@@ -42,10 +44,12 @@ type DBInstanceCreator interface {
 	Create(*CreateInstanceInput) (*CreateInstanceOutput, error)
 }
 
+// DBInstanceManager provides abstraction for interacting with RDSAPI
 type DBInstanceManager struct {
 	client rdsiface.RDSAPI
 }
 
+// Create will create a new RDS instance if not already existing
 func (a *DBInstanceManager) Create(input *CreateInstanceInput) (*CreateInstanceOutput, error) {
 	db, err := a.client.CreateDBInstance(&awsrds.CreateDBInstanceInput{
 		DBInstanceIdentifier:       aws.String(input.InstanceName),
@@ -60,7 +64,7 @@ func (a *DBInstanceManager) Create(input *CreateInstanceInput) (*CreateInstanceO
 		MultiAZ:                    aws.Bool(input.MultiAZ),
 		BackupRetentionPeriod:      aws.Int64(0),
 		PreferredMaintenanceWindow: aws.String("Sat:14:30-Sat:15:30"), // Sun 01:30-02:30 AEDT
-		PreferredBackupWindow:      aws.String("Sat:13:30-Sat:14:30"), // Sun 00:30-01:30 AEDT
+		PreferredBackupWindow:      aws.String("13:30-14:30"),         // Sun 00:30-01:30 AEDT
 		MasterUserPassword:         aws.String(input.MasterPassword),
 		MasterUsername:             aws.String(input.MasterUsername),
 		Tags:                       mapToTags(input.Tags),
@@ -70,23 +74,7 @@ func (a *DBInstanceManager) Create(input *CreateInstanceInput) (*CreateInstanceO
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
 			case awsrds.ErrCodeDBInstanceAlreadyExistsFault:
-				output, derr := a.client.DescribeDBInstances(&awsrds.DescribeDBInstancesInput{
-					DBInstanceIdentifier: db.DBInstance.DBInstanceIdentifier,
-				})
-
-				// TODO: Confirm the DB has our tags and we managed it, otherwise return an error
-
-				if derr != nil {
-					return nil, derr
-				}
-
-				return &CreateInstanceOutput{
-					AlreadyExists: true,
-					Name:          aws.StringValue(output.DBInstances[0].DBInstanceIdentifier),
-					ARN:           aws.StringValue(output.DBInstances[0].DBInstanceArn),
-					Address:       aws.StringValue(output.DBInstances[0].DBInstanceArn),
-					Port:          aws.Int64Value(output.DBInstances[0].DbInstancePort),
-				}, nil
+				return a.getInstance(db.DBInstance.DBInstanceIdentifier, true)
 			}
 		}
 
@@ -101,15 +89,33 @@ func (a *DBInstanceManager) Create(input *CreateInstanceInput) (*CreateInstanceO
 		return nil, err
 	}
 
-	return &CreateInstanceOutput{
-		AlreadyExists: false,
-		Name:          aws.StringValue(db.DBInstance.DBInstanceIdentifier),
-		ARN:           aws.StringValue(db.DBInstance.DBInstanceArn),
-		Address:       aws.StringValue(db.DBInstance.DBInstanceArn),
-		Port:          aws.Int64Value(db.DBInstance.DbInstancePort),
-	}, nil
+	return a.getInstance(db.DBInstance.DBInstanceIdentifier, false)
 }
 
+func (a *DBInstanceManager) getInstance(dbInstanceIdentifier *string, alreadyExists bool) (*CreateInstanceOutput, error) {
+	output, err := a.client.DescribeDBInstances(&awsrds.DescribeDBInstancesInput{
+		DBInstanceIdentifier: dbInstanceIdentifier,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	dbInstance := output.DBInstances[0]
+	return toOutput(dbInstance, alreadyExists), nil
+}
+
+func toOutput(dbInstance *awsrds.DBInstance, alreadyExists bool) *CreateInstanceOutput {
+	return &CreateInstanceOutput{
+		AlreadyExists: alreadyExists,
+		Name:          aws.StringValue(dbInstance.DBInstanceIdentifier),
+		ARN:           aws.StringValue(dbInstance.DBInstanceArn),
+		Address:       aws.StringValue(dbInstance.Endpoint.Address),
+		Port:          aws.Int64Value(dbInstance.Endpoint.Port),
+	}
+}
+
+// NewDBInstanceManager return new instance of DBInstanceManager for interacting with RDSAPI
 func NewDBInstanceManager() *DBInstanceManager {
 	session, _ := session.NewSession(aws.NewConfig())
 	manager := &DBInstanceManager{client: awsrds.New(session)}

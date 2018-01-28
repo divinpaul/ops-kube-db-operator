@@ -3,6 +3,7 @@ package rds
 import (
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
 	awsrds "github.com/aws/aws-sdk-go/service/rds"
 	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
 )
@@ -32,7 +33,7 @@ func (r *mockRDSApi) WaitUntilDBInstanceAvailable(input *awsrds.DescribeDBInstan
 	return r.waitFunc(input)
 }
 
-func newMockRDSApi(createOutput *awsrds.CreateDBInstanceOutput) *mockRDSApi {
+func newMockRDSApi(createOutput *awsrds.CreateDBInstanceOutput, descOutput *awsrds.DescribeDBInstancesOutput) *mockRDSApi {
 	return &mockRDSApi{
 		CreateCalled:   false,
 		DescribeCalled: false,
@@ -41,7 +42,7 @@ func newMockRDSApi(createOutput *awsrds.CreateDBInstanceOutput) *mockRDSApi {
 			return createOutput, nil
 		},
 		describeFunc: func(input *awsrds.DescribeDBInstancesInput) (*awsrds.DescribeDBInstancesOutput, error) {
-			return &awsrds.DescribeDBInstancesOutput{}, nil
+			return descOutput, nil
 		},
 		waitFunc: func(_input *awsrds.DescribeDBInstancesInput) error {
 			return nil
@@ -50,11 +51,20 @@ func newMockRDSApi(createOutput *awsrds.CreateDBInstanceOutput) *mockRDSApi {
 }
 
 func TestSuccessfulCreate(t *testing.T) {
-	mockRds := newMockRDSApi(&awsrds.CreateDBInstanceOutput{DBInstance: &awsrds.DBInstance{}})
+	// Given
+	createOutput := &awsrds.CreateDBInstanceOutput{DBInstance: aDBInstance("dbName", "arn::123")}
+
+	describeOutput := &awsrds.DescribeDBInstancesOutput{DBInstances: []*awsrds.DBInstance{
+		aDBInstanceWithEndpoint("dbName", "arn::123", "db.awscom", 1234),
+	}}
+
+	mockRds := newMockRDSApi(createOutput, describeOutput)
 	dbManager := &DBInstanceManager{client: mockRds}
 
+	// When
 	actual, err := dbManager.Create(&CreateInstanceInput{})
 
+	// Then
 	if err != nil {
 		t.Error(err)
 	}
@@ -63,20 +73,60 @@ func TestSuccessfulCreate(t *testing.T) {
 		t.Errorf("CreateDBInstance method never called.")
 	}
 
-	if actual.AlreadyExists {
-		t.Errorf("AlreadyExists is true when it should be false: %v", actual)
+	if !mockRds.DescribeCalled {
+		t.Errorf("DescribeDBInstance method never called.")
 	}
 
 	if !mockRds.WaitCalled {
 		t.Errorf("Wait method never called.")
 	}
+
+	if actual.AlreadyExists {
+		t.Errorf("AlreadyExists is true when it should be false: %v", actual)
+	}
+
+	if expected := "dbName"; actual.Name != expected {
+		t.Errorf("Expected Name to be %s, got:%v", expected, actual.Name)
+	}
+
+	if expected := "arn::123"; actual.ARN != expected {
+		t.Errorf("Expected ARN to be %s, got:%v", expected, actual.Name)
+	}
+
+	if expected := "db.awscom"; actual.Address != expected {
+		t.Errorf("Expected Address to be %s, got:%v", expected, actual.Name)
+	}
+
+	if expected := int64(1234); actual.Port != expected {
+		t.Errorf("Expected Port to be %v, got:%v", expected, actual.Name)
+	}
 }
+
 func TestAlreadyExistCreate(t *testing.T) {
 
 }
+
 func TestErroredCreate(t *testing.T) {
 
 }
 func TestTimedOutCreate(t *testing.T) {
 
+}
+
+func aDBInstance(name, arn string) *awsrds.DBInstance {
+	return &awsrds.DBInstance{
+		DBInstanceIdentifier: aws.String(name),
+		DBInstanceArn:        aws.String(arn),
+	}
+}
+
+func aDBInstanceWithEndpoint(name, arn, endpointAddress string, port int64) *awsrds.DBInstance {
+	return &awsrds.DBInstance{
+		DBInstanceIdentifier: aws.String(name),
+		DBInstanceArn:        aws.String(arn),
+		Endpoint: &awsrds.Endpoint{
+			Address: aws.String(endpointAddress),
+			Port:    aws.Int64(port),
+		},
+	}
 }

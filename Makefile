@@ -51,3 +51,16 @@ lint:
 	--disable test \
 	--disable testify \
 	./... --debug
+
+run:
+	@echo "+++ Running outside cluster"
+	@docker-compose run --rm go run *.go -logtostderr=true -v=2
+
+postgres-exporter-up:
+	@echo "Deploying exporter..."
+	@docker-compose run --rm gomplate --file=postgres-exporter.yaml --datasource config=values.yaml --datasource queries=queries.yaml -o output.yaml
+	@docker-compose run --rm kubectl apply -f output.yaml
+
+postgres-exporter-down:
+	@echo "Destroying exporter..."
+	@docker-compose run --rm kubectl delete -f output.yaml
