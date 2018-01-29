@@ -15,6 +15,6 @@ script:
   - make ci
 
 after_success:
-  - if [ "$TRAVIS_BRANCH" == "master" ]; then
+  - if [ -n "$TRAVIS_TAG" ]; then
     make login publish;
     fi
