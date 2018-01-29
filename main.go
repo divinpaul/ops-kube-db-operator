@@ -20,24 +20,15 @@ import (
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/worker"
 )
 
-var version = "snapshot"
-var dbEnvironment string
+var (
+	version = "snapshot"
+	dbEnvironment string
+	kubeconfig string
+)
 
 func main() {
-	flag.Parse()
-
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := signals.SetupSignalHandler()
-
-	var kubeconfig string
-
-	flag.StringVar(&kubeconfig, "kubeconfig", "", "kubeconfig file")
-	flag.Parse()
-
-	// if no flag has been passed, read kubeconfig file from environment
-	if kubeconfig == "" {
-		kubeconfig = os.Getenv("KUBECONFIG")
-	}
 
 	var config *rest.Config
 	var err error
@@ -79,4 +70,12 @@ func main() {
 
 func init() {
 	flag.StringVar(&dbEnvironment, "dbenv", "development", "Environment for creating RDS instances (production|development).")
+	flag.StringVar(&kubeconfig, "kubeconfig", "", "kubeconfig file")
+
+	flag.Parse()
+
+	// if no flag has been passed, read kubeconfig file from environment
+	if kubeconfig == "" {
+		kubeconfig = os.Getenv("KUBECONFIG")
+	}
 }
