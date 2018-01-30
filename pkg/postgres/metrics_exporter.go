@@ -105,13 +105,16 @@ func updateService(svc *apiv1.Service, labels map[string]string, namespace, name
 }
 
 func (e *MetricsExporter) applyDeployment(labels map[string]string, namespace, name string, port int) error {
+	fmt.Sprintf("applyDeployment start...")
 	obj, err := e.clientset.ExtensionsV1beta1().Deployments(namespace).Get(name, metav1.GetOptions{})
 
 	if err == nil {
+		fmt.Sprintf("applyDeployment 2...")
 		deployment := updateDeployment(obj, labels, namespace, name, port)
 		if _, err = e.clientset.ExtensionsV1beta1().Deployments(namespace).Update(deployment); nil != err {
+			fmt.Sprintf("applyDeployment error captured...")
 			glog.Errorf("Error updating deployment %s in namespace %s:[%s]", namespace, name, err)
-
+			fmt.Sprintf("applyDeployment error captured & logged...")
 			return err
 		}
 	}
@@ -123,7 +126,7 @@ func (e *MetricsExporter) applyDeployment(labels map[string]string, namespace, n
 			return err
 		}
 	}
-
+	fmt.Sprintf("applyDeployment end...")
 	return err
 }
 
