@@ -74,7 +74,7 @@ func (a *DBInstanceManager) Create(input *CreateInstanceInput) (*CreateInstanceO
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
 			case awsrds.ErrCodeDBInstanceAlreadyExistsFault:
-				return a.getInstance(db.DBInstance.DBInstanceIdentifier, true)
+				return a.getInstance(aws.String(input.InstanceName), true)
 			}
 		}
 
