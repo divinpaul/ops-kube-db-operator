@@ -136,6 +136,12 @@ To verify access to the cluster, please read the docs [here](docs/ACCESS.md)
 ❯ make run
 ```
 
+* run it outside Docker for a faster feedback loop
+```bash
+❯ AWS_REGION="ap-southeast-2" KUBECONFIG=~/.kube/config go run *.go -logtostderr=true -v=2
+```
+
+
 * create example db
 ```bash
 ❯ kubectl apply -f yaml/example.yaml -n <your_namespace>
