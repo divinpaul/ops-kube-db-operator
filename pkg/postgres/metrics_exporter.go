@@ -46,16 +46,12 @@ func (e *MetricsExporter) applyConfigMap(labels map[string]string, namespace, na
 
 	if err == nil {
 		if _, err = e.clientset.CoreV1().ConfigMaps(namespace).Update(obj); nil != err {
-			glog.Errorf("Error updating service %s in namespace %s:[%s]", namespace, name, err)
-
 			return err
 		}
 	}
 
 	if errors.IsNotFound(err) {
 		if _, err = e.clientset.CoreV1().ConfigMaps(namespace).Create(updateConfigMap(&apiv1.ConfigMap{}, labels, namespace, name)); nil != err {
-			glog.Errorf("Error creating config map %s in namespace %s:[%s]", namespace, name, err)
-
 			return err
 		}
 	}
@@ -76,16 +72,12 @@ func (e *MetricsExporter) applyService(labels map[string]string, namespace, name
 
 	if err == nil {
 		if _, err = e.clientset.CoreV1().Services(namespace).Update(updateService(obj, labels, namespace, name, port)); nil != err {
-			glog.Errorf("Error updating service %s in namespace %s:[%s]", namespace, name, err)
-
 			return err
 		}
 	}
 
 	if errors.IsNotFound(err) {
 		if _, err = e.clientset.CoreV1().Services(namespace).Create(updateService(&apiv1.Service{}, labels, namespace, name, port)); nil != err {
-			glog.Errorf("Error creating service %s in namespace %s:[%s]", namespace, name, err)
-
 			return err
 		}
 	}
@@ -105,25 +97,23 @@ func updateService(svc *apiv1.Service, labels map[string]string, namespace, name
 }
 
 func (e *MetricsExporter) applyDeployment(labels map[string]string, namespace, name string, port int) error {
+	glog.Info("applyDeployment start...")
 	obj, err := e.clientset.ExtensionsV1beta1().Deployments(namespace).Get(name, metav1.GetOptions{})
 
 	if err == nil {
+		// Already exists so updating
 		deployment := updateDeployment(obj, labels, namespace, name, port)
 		if _, err = e.clientset.ExtensionsV1beta1().Deployments(namespace).Update(deployment); nil != err {
-			glog.Errorf("Error updating deployment %s in namespace %s:[%s]", namespace, name, err)
-
 			return err
 		}
 	}
 
 	if errors.IsNotFound(err) {
+		// Doesn't exist so creating
 		if _, err = e.clientset.ExtensionsV1beta1().Deployments(namespace).Create(updateDeployment(&extsv1beta1.Deployment{}, labels, namespace, name, port)); nil != err {
-			glog.Errorf("Error creating deployment %s in namespace %s:[%s]", namespace, name, err)
-
 			return err
 		}
 	}
-
 	return err
 }
 

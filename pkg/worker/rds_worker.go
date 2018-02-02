@@ -39,36 +39,35 @@ func (w *RDSWorker) OnCreate(obj interface{}) {
 	crd := obj.(*crds.PostgresDB)
 	crdName := crd.ObjectMeta.Name
 	crdNamespace := crd.ObjectMeta.Namespace
-	// instanceName := fmt.Sprintf("%s-%s", crdName, crd.GetUID())
+	instanceName := fmt.Sprintf("%s-%s", crdName, crd.GetUID())
 
-	// masterUser, _ := postgres.NewMasterUser()
-	// masterScrt, err := w.k8s.SaveMasterSecret(crdName, masterUser, nil, instanceName)
+	masterUser, _ := postgres.NewMasterUser()
+	masterScrt, err := w.k8s.SaveMasterSecret(crdName, masterUser, nil, instanceName)
 
-	// createdInstance, err := w.createInstance(crd, masterScrt, instanceName)
+	createdInstance, err := w.createInstance(crd, masterScrt, instanceName)
 
-	// if err != nil {
-	// 	glog.Errorf("There was an error creating database instance %s: %s", instanceName, err.Error())
-	// 	w.k8s.UpdateCRDStatus(crd, crdNamespace, fmt.Sprintf("Error creating database instance: %s", err.Error()))
-	// 	return
-	// }
+	if err != nil {
+		glog.Errorf("There was an error creating database instance %s: %s", instanceName, err.Error())
+		w.k8s.UpdateCRDStatus(crd, crdNamespace, fmt.Sprintf("Error creating database instance: %s", err.Error()))
+		return
+	}
 
-	// w.k8s.UpdateCRDAsAvailable(crd, crdNamespace, "available", createdInstance.ARN)
+	w.k8s.UpdateCRDAsAvailable(crd, crdNamespace, "available", createdInstance.ARN)
 
-	// if createdInstance.AlreadyExists {
-	// 	glog.Infof("Database instance %s already exists, so finishing...", instanceName)
-	// 	return
-	// }
-	// w.k8s.SaveMasterSecret(crdName, masterUser, createdInstance, instanceName)
+	if createdInstance.AlreadyExists {
+		glog.Infof("Database instance %s already exists, so finishing...", instanceName)
+		return
+	}
+	w.k8s.SaveMasterSecret(crdName, masterUser, createdInstance, instanceName)
 
-	// // TODO: use postgres package to create new database and db users
-	// conn, _ := postgres.NewRawConn(createdInstance.Address, createdInstance.Port, masterUser)
-	// // dd, _ := conn.CreateDatabaseDescriptor()
+	// TODO: use postgres package to create new database and db users
+	conn, _ := postgres.NewRawConn(createdInstance.Address, createdInstance.Port, masterUser)
+	dd, _ := conn.CreateDatabaseDescriptor()
 
-	// w.k8s.SaveAdminSecret(crd, dd, instanceName)
-	// w.k8s.SaveMetricsExporterSecret(crd, dd, instanceName)
-
+	w.k8s.SaveAdminSecret(crd, dd, instanceName)
+	w.k8s.SaveMetricsExporterSecret(crd, dd, instanceName)
 	metricsExporter := postgres.NewMetricsExporter(w.k8s.clientset)
-	err := metricsExporter.Deploy(fmt.Sprintf("%s-shadow", crdNamespace), crdName)
+	err = metricsExporter.Deploy(fmt.Sprintf("%s-shadow", crdNamespace), crdName)
 	if err != nil {
 		glog.Errorf("There was an error creating exporter-deployment %s: %s", crdName, err.Error())
 	}
