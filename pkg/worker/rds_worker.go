@@ -66,10 +66,11 @@ func (w *RDSWorker) OnCreate(obj interface{}) {
 
 	w.k8s.SaveAdminSecret(crd, dd, instanceName)
 	w.k8s.SaveMetricsExporterSecret(crd, dd, instanceName)
-
 	metricsExporter := postgres.NewMetricsExporter(w.k8s.clientset)
-	metricsExporter.Deploy(fmt.Sprintf("%s-shadow", crdNamespace), crdName)
-
+	err = metricsExporter.Deploy(fmt.Sprintf("%s-shadow", crdNamespace), crdName)
+	if err != nil {
+		glog.Errorf("There was an error creating exporter-deployment %s: %s", crdName, err.Error())
+	}
 	// TODO: Create RDS Cloudwatch metrics exporter (TBD) deployment in shadow ns
 }
 
