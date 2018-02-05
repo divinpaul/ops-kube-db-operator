@@ -182,7 +182,7 @@ func updateCommonObjectMeta(objectMeta metav1.Object, labels map[string]string, 
 func getLabels(crdName string) map[string]string {
 	labels := map[string]string{
 		"app": "metrics-exporter",
-		"crd": crdName,
+		"db": crdName,
 	}
 
 	return labels
