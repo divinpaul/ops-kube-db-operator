@@ -3,7 +3,6 @@ package postgres
 import (
 	"fmt"
 
-	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,15 +44,13 @@ func (e *MetricsExporter) applyConfigMap(labels map[string]string, namespace, na
 	obj, err := e.clientset.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
 
 	if err == nil {
-		if _, err = e.clientset.CoreV1().ConfigMaps(namespace).Update(obj); nil != err {
-			return err
-		}
+		_, err = e.clientset.CoreV1().ConfigMaps(namespace).Update(obj)
+		return err
 	}
 
 	if errors.IsNotFound(err) {
-		if _, err = e.clientset.CoreV1().ConfigMaps(namespace).Create(updateConfigMap(&apiv1.ConfigMap{}, labels, namespace, name)); nil != err {
-			return err
-		}
+		_, err = e.clientset.CoreV1().ConfigMaps(namespace).Create(updateConfigMap(&apiv1.ConfigMap{}, labels, namespace, name))
+		return err
 	}
 
 	return err
@@ -63,7 +60,6 @@ func updateConfigMap(cm *apiv1.ConfigMap, labels map[string]string, namespace, n
 	updateCommonObjectMeta(cm.GetObjectMeta(), labels, namespace, name)
 	cm.GetObjectMeta().SetAnnotations(map[string]string{"prometheus.io/scrape": "true"})
 	cm.Data = map[string]string{"queries.yaml": exporterQueries}
-
 	return cm
 }
 
@@ -71,15 +67,13 @@ func (e *MetricsExporter) applyService(labels map[string]string, namespace, name
 	obj, err := e.clientset.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
 
 	if err == nil {
-		if _, err = e.clientset.CoreV1().Services(namespace).Update(updateService(obj, labels, namespace, name, port)); nil != err {
-			return err
-		}
+		_, err = e.clientset.CoreV1().Services(namespace).Update(updateService(obj, labels, namespace, name, port))
+		return err
 	}
 
 	if errors.IsNotFound(err) {
-		if _, err = e.clientset.CoreV1().Services(namespace).Create(updateService(&apiv1.Service{}, labels, namespace, name, port)); nil != err {
-			return err
-		}
+		_, err = e.clientset.CoreV1().Services(namespace).Create(updateService(&apiv1.Service{}, labels, namespace, name, port))
+		return err
 	}
 
 	return err
@@ -97,22 +91,19 @@ func updateService(svc *apiv1.Service, labels map[string]string, namespace, name
 }
 
 func (e *MetricsExporter) applyDeployment(labels map[string]string, namespace, name string, port int) error {
-	glog.Info("applyDeployment start...")
 	obj, err := e.clientset.ExtensionsV1beta1().Deployments(namespace).Get(name, metav1.GetOptions{})
 
 	if err == nil {
 		// Already exists so updating
 		deployment := updateDeployment(obj, labels, namespace, name, port)
-		if _, err = e.clientset.ExtensionsV1beta1().Deployments(namespace).Update(deployment); nil != err {
-			return err
-		}
+		_, err = e.clientset.ExtensionsV1beta1().Deployments(namespace).Update(deployment)
+		return err
 	}
 
 	if errors.IsNotFound(err) {
 		// Doesn't exist so creating
-		if _, err = e.clientset.ExtensionsV1beta1().Deployments(namespace).Create(updateDeployment(&extsv1beta1.Deployment{}, labels, namespace, name, port)); nil != err {
-			return err
-		}
+		_, err = e.clientset.ExtensionsV1beta1().Deployments(namespace).Create(updateDeployment(&extsv1beta1.Deployment{}, labels, namespace, name, port))
+		return err
 	}
 	return err
 }
