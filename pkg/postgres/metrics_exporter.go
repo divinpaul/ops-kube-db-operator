@@ -199,7 +199,7 @@ func int32Ptr(x int32) *int32 {
 }
 
 const metricsExporterPort = 9187
-const exporterQueries = `|
+const exporterQueries = `
     pg_database:
       metrics:
       - datname:
