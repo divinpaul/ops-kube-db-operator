@@ -182,7 +182,7 @@ func updateCommonObjectMeta(objectMeta metav1.Object, labels map[string]string, 
 func getLabels(crdName string) map[string]string {
 	labels := map[string]string{
 		"app": "metrics-exporter",
-		"crd": crdName,
+		"db": crdName,
 	}
 
 	return labels
@@ -199,7 +199,7 @@ func int32Ptr(x int32) *int32 {
 }
 
 const metricsExporterPort = 9187
-const exporterQueries = `|
+const exporterQueries = `
     pg_database:
       metrics:
       - datname:
