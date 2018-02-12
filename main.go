@@ -15,6 +15,7 @@ import (
 	informers "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions"
 
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/controller"
+	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/k8s"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/rds"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/signals"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/worker"
@@ -68,7 +69,7 @@ func main() {
 		DefaultStorage:  5,          // hardcoded for now
 		DBEnvironment:   dbEnvironment,
 	}
-	rdsWorker := worker.NewRDSWorker(manager, k8sClient, dbClient.PostgresdbV1alpha1(), rdsConfig)
+	rdsWorker := worker.NewRDSWorker(manager, k8sClient, dbClient.PostgresdbV1alpha1(), rdsConfig, k8s.NewK8SCRDClient(dbClient.PostgresdbV1alpha1()))
 
 	dbInformerFactory := informers.NewSharedInformerFactory(dbClient, time.Second*30)
 	go dbInformerFactory.Start(stopCh)

@@ -29,19 +29,6 @@ func NewClient(clientSet kubernetes.Interface, crdClientset postgresdbv1alpha1.P
 	return &Client{Clientset: clientSet, crdClientset: crdClientset}
 }
 
-// UpdateCRDStatus updates the Ready message on postgresDB crd with provided status
-func (c *Client) UpdateCRDStatus(crd *crds.PostgresDB, namespace, status string) (*crds.PostgresDB, error) {
-	crd.Status.Ready = status
-
-	return c.crdClientset.PostgresDBs(namespace).Update(crd)
-}
-
-// UpdateCRDStatus updates the postgresDB crd status indicating it is available
-func (c *Client) UpdateCRDAsAvailable(crd *crds.PostgresDB, namespace, status, arn string) (*crds.PostgresDB, error) {
-	crd.Status.ARN = arn
-	return c.UpdateCRDStatus(crd, namespace, status)
-}
-
 // SaveAdminSecret save k8s secret with master db user credentials
 func (c *Client) SaveMasterSecret(crdName string, masterUser *postgres.User, instance *rds.CreateInstanceOutput, instanceName string) (*secret.DBSecret, error) {
 	secretName := fmt.Sprintf("%s-%s", crdName, "master")

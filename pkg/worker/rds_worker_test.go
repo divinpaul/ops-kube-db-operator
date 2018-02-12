@@ -24,6 +24,15 @@ type mockDBInstanceCreator struct {
 	shouldErrorCreate bool
 }
 
+type mockCRDClient struct {
+	Calls []crds.PostgresDB
+}
+
+func (c *mockCRDClient) Update(crd *crds.PostgresDB) (*crds.PostgresDB, error) {
+	c.Calls = append(c.Calls, *crd)
+	return crd, nil
+}
+
 func (m *mockDBInstanceCreator) Create(input *rds.CreateInstanceInput) (*rds.CreateInstanceOutput, error) {
 	if m.shouldErrorCreate {
 		return nil, errors.New("test error")
@@ -39,13 +48,6 @@ var (
 
 func TestCreateFunction(t *testing.T) {
 	// Given
-	defaultMockCrds := fakeCrd.NewSimpleClientset()
-	expectedCrdActions := []expectedActions{
-		{namespace: "test-namespace", verb: "update", resource: "postgresdbs"},
-		{namespace: "test-namespace", verb: "update", resource: "postgresdbs"},
-	}
-
-	defaultMockClientSet := fake.NewSimpleClientset()
 	expectedK8sActions := []expectedActions{
 		// Master secret initial save
 		{namespace: "kube-system", verb: "get", resource: "secrets", name: "crdname-master"},
@@ -74,9 +76,7 @@ func TestCreateFunction(t *testing.T) {
 		{namespace: "test-namespace-shadow", verb: "create", resource: "deployments"},
 	}
 
-	defaultMockDBInstanceCreator.output = &rds.CreateInstanceOutput{ARN: "test-arn"}
-
-	wrkr := worker.NewRDSWorker(defaultMockDBInstanceCreator, defaultMockClientSet, defaultMockCrds.PostgresdbV1alpha1(), defaultRdsConfig)
+	wrkr, defaultMockClientSet, _ := createSuccessfulRDSWorker()
 	crd := crds.PostgresDB{}
 	crd.ObjectMeta.Name = "crdname"
 	crd.ObjectMeta.Namespace = "test-namespace"
@@ -85,34 +85,18 @@ func TestCreateFunction(t *testing.T) {
 	wrkr.OnCreate(&crd)
 
 	// Then
-	assertActions(t, expectedCrdActions, defaultMockCrds.Actions())
 	assertActions(t, expectedK8sActions, defaultMockClientSet.Actions())
-
-	if crd.Status.Ready != "available" {
-		t.Errorf("CRD Status Ready not updated properly: %#v", crd.Status)
-	}
-
-	if crd.Status.ARN != "test-arn" {
-		t.Errorf("CRD Status ARN not updated properly: %#v", crd.Status)
-	}
 }
 
 func TestCreateFunctionWithCreateDBError(t *testing.T) {
 	// Given
-	defaultMockCrds := fakeCrd.NewSimpleClientset()
-	expectedCrdActions := []expectedActions{
-		{namespace: "test-namespace", verb: "update", resource: "postgresdbs"},
-		{namespace: "test-namespace", verb: "update", resource: "postgresdbs"},
-	}
-
-	defaultMockClientSet := fake.NewSimpleClientset()
 	expectedK8sActions := []expectedActions{
 		{namespace: "kube-system", verb: "get", resource: "secrets", name: "crdname-master"},
 		{namespace: "kube-system", verb: "get", resource: "secrets", name: "crdname-master"},
 		{namespace: "kube-system", verb: "create", resource: "secrets"},
 	}
 
-	wrkr := worker.NewRDSWorker(&mockDBInstanceCreator{shouldErrorCreate: true}, defaultMockClientSet, defaultMockCrds.PostgresdbV1alpha1(), defaultRdsConfig)
+	wrkr, defaultMockClientSet, _ := createDBErrorRDSWorker()
 	crd := crds.PostgresDB{}
 	crd.ObjectMeta.Name = "crdname"
 	crd.ObjectMeta.Namespace = "test-namespace"
@@ -121,11 +105,62 @@ func TestCreateFunctionWithCreateDBError(t *testing.T) {
 	wrkr.OnCreate(&crd)
 
 	// then
-	assertActions(t, expectedCrdActions, defaultMockCrds.Actions())
 	assertActions(t, expectedK8sActions, defaultMockClientSet.Actions())
+}
 
-	if crd.Status.Ready != "Error creating database instance: test error" {
-		t.Errorf("CRD Status Ready not updated properly: %#v", crd.Status)
+func TestCreateFunctionWithUpdateCRD(t *testing.T) {
+	// Given
+	wrkr, _, crdClient := createSuccessfulRDSWorker()
+	crd := crds.PostgresDB{}
+	crd.ObjectMeta.Name = "crdname"
+	crd.ObjectMeta.Namespace = "test-namespace"
+
+	// when
+	wrkr.OnCreate(&crd)
+
+	// assert
+	if len(crdClient.Calls) != 2 {
+		t.Errorf("expected two calls got %d", len(crdClient.Calls))
+	}
+
+	if crdClient.Calls[0].Status.Ready != "Creating database instance crdname-..." {
+		t.Errorf("expected status Ready of creating db, got %s", crdClient.Calls[0].Status.Ready)
+	}
+
+	if crdClient.Calls[0].Status.ARN != "" {
+		t.Errorf("expected status ARN to be empty, got %s", crdClient.Calls[0].Status.ARN)
+	}
+
+	if crdClient.Calls[1].Status.Ready != "available" {
+		t.Errorf("expected status Ready of available got %s", crdClient.Calls[1].Status.Ready)
+	}
+
+	if crdClient.Calls[1].Status.ARN != "test-arn" {
+		t.Errorf("expected status ARN of test-arn got %s", crdClient.Calls[1].Status.ARN)
+	}
+}
+
+func TestCreateFunctionWithUpdateCRDOnDBCreateError(t *testing.T) {
+	// Given
+	wrkr, _, crdClient := createDBErrorRDSWorker()
+	crd := crds.PostgresDB{}
+	crd.ObjectMeta.Name = "crdname"
+	crd.ObjectMeta.Namespace = "test-namespace"
+
+	// when
+	wrkr.OnCreate(&crd)
+
+	// assert
+	if len(crdClient.Calls) != 2 {
+		t.Errorf("expected two calls got %d", len(crdClient.Calls))
+	}
+
+	if crdClient.Calls[1].Status.Ready != "There was an error creating database instance crdname-: test error" {
+		t.Errorf("expected status Ready to have error, got %s", crdClient.Calls[1].Status.Ready)
+	}
+
+	if crdClient.Calls[1].Status.ARN != "" {
+		t.Errorf("expected status ARN to be empty, got %s", crdClient.Calls[1].Status.ARN)
 	}
 }
 
@@ -162,4 +197,31 @@ func containsField(object interface{}, fieldName, fieldValue string) bool {
 	field := fmt.Sprintf("%s:%#v", fieldName, fieldValue)
 
 	return strings.Contains(strings.ToLower(objectString), strings.ToLower(field))
+}
+
+func createSuccessfulRDSWorker() (*worker.RDSWorker, *fake.Clientset, *mockCRDClient) {
+	defaultMockCrds := fakeCrd.NewSimpleClientset()
+
+	defaultMockClientSet := fake.NewSimpleClientset()
+
+	crdClient := &mockCRDClient{}
+
+	defaultMockDBInstanceCreator := &mockDBInstanceCreator{shouldErrorCreate: false}
+	defaultMockDBInstanceCreator.output = &rds.CreateInstanceOutput{ARN: "test-arn"}
+
+	wrkr := worker.NewRDSWorker(defaultMockDBInstanceCreator, defaultMockClientSet, defaultMockCrds.PostgresdbV1alpha1(), defaultRdsConfig, crdClient)
+
+	return wrkr, defaultMockClientSet, crdClient
+}
+
+func createDBErrorRDSWorker() (*worker.RDSWorker, *fake.Clientset, *mockCRDClient) {
+	defaultMockCrds := fakeCrd.NewSimpleClientset()
+
+	defaultMockClientSet := fake.NewSimpleClientset()
+
+	crdClient := &mockCRDClient{}
+
+	wrkr := worker.NewRDSWorker(&mockDBInstanceCreator{shouldErrorCreate: true}, defaultMockClientSet, defaultMockCrds.PostgresdbV1alpha1(), defaultRdsConfig, crdClient)
+
+	return wrkr, defaultMockClientSet, crdClient
 }

@@ -28,6 +28,7 @@ type RDSWorker struct {
 	// injected deps for testing
 	dbInstanceCreator rds.DBInstanceCreator
 	k8sClient         *k8s.Client
+	crdClient         k8s.CRDClient
 
 	// env config
 	config *RDSConfig
@@ -45,20 +46,39 @@ func (w *RDSWorker) OnCreate(obj interface{}) {
 	masterUser, _ := postgres.NewMasterUser()
 	masterScrt, err := w.k8sClient.SaveMasterSecret(crdName, masterUser, nil, instanceName)
 
+	crd.Status.Ready = fmt.Sprintf("Creating database instance %s...", instanceName)
+	crd, err = w.crdClient.Update(crd)
+	if err != nil {
+		glog.Errorf("There was an error updating the crd: %s", err.Error())
+		return
+	}
+
 	createdInstance, err := w.createInstance(crd, masterScrt, instanceName)
 
 	if err != nil {
 		glog.Errorf("There was an error creating database instance %s: %s", instanceName, err.Error())
-		w.k8sClient.UpdateCRDStatus(crd, crdNamespace, fmt.Sprintf("Error creating database instance: %s", err.Error()))
+		crd.Status.Ready = fmt.Sprintf("There was an error creating database instance %s: %s", instanceName, err.Error())
+		crd, err = w.crdClient.Update(crd)
+		if err != nil {
+			glog.Errorf("There was an error updating the crd: %s", err.Error())
+		}
+
 		return
 	}
 
-	w.k8sClient.UpdateCRDAsAvailable(crd, crdNamespace, "available", createdInstance.ARN)
+	crd.Status.Ready = "available"
+	crd.Status.ARN = createdInstance.ARN
+	crd, err = w.crdClient.Update(crd)
+	if err != nil {
+		glog.Errorf("There was an error updating the crd: %s", err.Error())
+		return
+	}
 
 	if createdInstance.AlreadyExists {
 		glog.Infof("Database instance %s already exists, so finishing...", instanceName)
 		return
 	}
+
 	w.k8sClient.SaveMasterSecret(crdName, masterUser, createdInstance, instanceName)
 
 	// TODO: use postgres package to create new database and db users
@@ -86,19 +106,18 @@ func (w *RDSWorker) OnDelete(obj interface{}) {
 }
 
 // NewRDSWorker returns new RDSWorker instance for handling change events on postgresDB crd
-func NewRDSWorker(dbInstanceCreator rds.DBInstanceCreator, clientSet kubernetes.Interface, crdClientset postgresdbv1alpha1.PostgresdbV1alpha1Interface, config *RDSConfig) *RDSWorker {
+func NewRDSWorker(dbInstanceCreator rds.DBInstanceCreator, clientSet kubernetes.Interface, crdClientset postgresdbv1alpha1.PostgresdbV1alpha1Interface, config *RDSConfig, crdClient k8s.CRDClient) *RDSWorker {
 	k8sClient := k8s.NewClient(clientSet, crdClientset)
 
 	return &RDSWorker{
 		dbInstanceCreator: dbInstanceCreator,
 		k8sClient:         k8sClient,
 		config:            config,
+		crdClient:         crdClient,
 	}
 }
 
 func (w *RDSWorker) createInstance(crd *crds.PostgresDB, masterScrt *secret.DBSecret, instanceName string) (*rds.CreateInstanceOutput, error) {
-	w.k8sClient.UpdateCRDStatus(crd, crd.ObjectMeta.Namespace, fmt.Sprintf("Creating database instance %s...", instanceName))
-
 	glog.Infof("Creating database %s...", instanceName)
 	createdDB, err := w.dbInstanceCreator.Create(&rds.CreateInstanceInput{
 		InstanceName:   instanceName,
