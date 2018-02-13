@@ -62,12 +62,21 @@ func main() {
 		glog.Fatalf("Error building CRD clientset: %s", err.Error())
 	}
 
+	backups := false
+	multiAZ := false
+	if dbEnvironment == "production" {
+		backups = true
+		multiAZ = true
+	}
+
 	manager := rds.NewDBInstanceManager()
 	rdsConfig := &worker.RDSConfig{
 		OperatorVersion: version,
 		DefaultSize:     "t1.Small", // hardcoded for now
 		DefaultStorage:  5,          // hardcoded for now
 		DBEnvironment:   dbEnvironment,
+		BackupRetention: backups,
+		MultiAZ:         multiAZ,
 	}
 	rdsWorker := worker.NewRDSWorker(manager, k8sClient, dbClient.PostgresdbV1alpha1(), rdsConfig, k8s.NewK8SCRDClient(dbClient.PostgresdbV1alpha1()))
 
