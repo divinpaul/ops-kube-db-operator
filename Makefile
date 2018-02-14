@@ -3,12 +3,11 @@
 REPO := myobplatform/ops-kube-db-operator
 PKG_DIR = github.com/MYOB-Technology/ops-kube-db-operator/pkg
 GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
-GO_TEST_PKGS = $(shell docker-compose run go list ./... |grep -v $(PKG_DIR)/client |grep -v $(PKG_DIR)/signals |grep -v $(PKG_DIR)/apis )
 
 ci: vendor test
 
 test:
-	@docker-compose run --rm go test ${GO_TEST_PKGS}
+	@docker-compose run --rm go test ./...
 
 vendor:
 	docker-compose run --rm dep ensure -v
