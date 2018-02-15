@@ -1,4 +1,4 @@
-package worker
+package k8s
 
 import (
 	"github.com/golang/glog"
@@ -16,33 +16,21 @@ import (
 
 const OperatorAdminNamespace = "kube-system"
 
-// K8sClient is a client that wraps all interactions with the k8s api server.
-type K8sClient struct {
+// Client is a client that wraps all interactions with the k8s api server.
+type Client struct {
 	// injected deps for testing
-	clientset    kubernetes.Interface
+	// TODO: Clientset should not be exposed
+	Clientset    kubernetes.Interface
 	crdClientset postgresdbv1alpha1.PostgresdbV1alpha1Interface
 }
 
 // NewK8sClient returns a new K8sClient for interacting with the k8s api server.
-func NewK8sClient(clientSet kubernetes.Interface, crdClientset postgresdbv1alpha1.PostgresdbV1alpha1Interface) *K8sClient {
-	return &K8sClient{clientset: clientSet, crdClientset: crdClientset}
-}
-
-// UpdateCRDStatus updates the Ready message on postgresDB crd with provided status
-func (c *K8sClient) UpdateCRDStatus(crd *crds.PostgresDB, namespace, status string) (*crds.PostgresDB, error) {
-	crd.Status.Ready = status
-
-	return c.crdClientset.PostgresDBs(namespace).Update(crd)
-}
-
-// UpdateCRDStatus updates the postgresDB crd status indicating it is available
-func (c *K8sClient) UpdateCRDAsAvailable(crd *crds.PostgresDB, namespace, status, arn string) (*crds.PostgresDB, error) {
-	crd.Status.ARN = arn
-	return c.UpdateCRDStatus(crd, namespace, status)
+func NewClient(clientSet kubernetes.Interface, crdClientset postgresdbv1alpha1.PostgresdbV1alpha1Interface) *Client {
+	return &Client{Clientset: clientSet, crdClientset: crdClientset}
 }
 
 // SaveAdminSecret save k8s secret with master db user credentials
-func (c *K8sClient) SaveMasterSecret(crdName string, masterUser *postgres.User, instance *rds.CreateInstanceOutput, instanceName string) (*secret.DBSecret, error) {
+func (c *Client) SaveMasterSecret(crdName string, masterUser *postgres.User, instance *rds.CreateInstanceOutput, instanceName string) (*secret.DBSecret, error) {
 	secretName := fmt.Sprintf("%s-%s", crdName, "master")
 	dd := &postgres.DatabaseDescriptor{Database: &postgres.Database{"postgres"}}
 
@@ -55,23 +43,23 @@ func (c *K8sClient) SaveMasterSecret(crdName string, masterUser *postgres.User, 
 }
 
 // SaveAdminSecret save k8s secret with admin db user credentials
-func (c *K8sClient) SaveAdminSecret(crd *crds.PostgresDB, dd *postgres.DatabaseDescriptor, instanceName string) (*secret.DBSecret, error) {
+func (c *Client) SaveAdminSecret(crd *crds.PostgresDB, dd *postgres.DatabaseDescriptor, instanceName string) (*secret.DBSecret, error) {
 	secretName := fmt.Sprintf("%s-%s", crd.ObjectMeta.Name, "admin")
 
 	return c.saveSecret(secretName, crd.ObjectMeta.Namespace, dd.Admin, dd, instanceName)
 }
 
 // SaveAdminSecret save k8s secret with metrics db exporter user credentials
-func (c *K8sClient) SaveMetricsExporterSecret(crd *crds.PostgresDB, dd *postgres.DatabaseDescriptor, instanceName string) (*secret.DBSecret, error) {
+func (c *Client) SaveMetricsExporterSecret(crd *crds.PostgresDB, dd *postgres.DatabaseDescriptor, instanceName string) (*secret.DBSecret, error) {
 	secretName := fmt.Sprintf("%s-%s", crd.ObjectMeta.Name, "metrics-exporter")
 	shadowNamespace := fmt.Sprintf("%s-shadow", crd.ObjectMeta.Namespace)
 
 	return c.saveSecret(secretName, shadowNamespace, dd.MetricsExporter, dd, instanceName)
 }
 
-func (c *K8sClient) saveSecret(secretName, namespace string, user *postgres.User, dd *postgres.DatabaseDescriptor, instanceName string) (*secret.DBSecret, error) {
+func (c *Client) saveSecret(secretName, namespace string, user *postgres.User, dd *postgres.DatabaseDescriptor, instanceName string) (*secret.DBSecret, error) {
 	glog.Infof("Creating %s secret in namespace %s for database instance %s...", user.Name, namespace, instanceName)
-	secret, _ := secret.NewOrGet(c.clientset.CoreV1(), namespace, secretName)
+	secret, _ := secret.NewOrGet(c.Clientset.CoreV1(), namespace, secretName)
 	secret.InstanceName = instanceName
 	secret.Host = dd.Host
 	secret.Port = strconv.Itoa(dd.Port)
