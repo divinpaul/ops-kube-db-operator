@@ -51,6 +51,12 @@ type DBInstanceManager struct {
 
 // Create will create a new RDS instance if not already existing
 func (a *DBInstanceManager) Create(input *CreateInstanceInput) (*CreateInstanceOutput, error) {
+	var backupRetention int64
+
+	if input.Backups {
+		backupRetention = 35
+	}
+
 	db, err := a.client.CreateDBInstance(&awsrds.CreateDBInstanceInput{
 		DBInstanceIdentifier:       aws.String(input.InstanceName),
 		DBInstanceClass:            aws.String(input.Size),
@@ -62,7 +68,7 @@ func (a *DBInstanceManager) Create(input *CreateInstanceInput) (*CreateInstanceO
 		StorageEncrypted:           aws.Bool(true),
 		StorageType:                aws.String("gp2"),
 		MultiAZ:                    aws.Bool(input.MultiAZ),
-		BackupRetentionPeriod:      aws.Int64(0),
+		BackupRetentionPeriod:      aws.Int64(backupRetention),
 		PreferredMaintenanceWindow: aws.String("Sat:14:30-Sat:15:30"), // Sun 01:30-02:30 AEDT
 		PreferredBackupWindow:      aws.String("13:30-14:30"),         // Sun 00:30-01:30 AEDT
 		MasterUserPassword:         aws.String(input.MasterPassword),

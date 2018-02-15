@@ -19,6 +19,8 @@ type RDSConfig struct {
 	DefaultStorage  int64
 	DBEnvironment   string
 	OperatorVersion string
+	BackupRetention bool
+	MultiAZ         bool
 }
 
 // RDSWorker creates an RDS instance for every postgres
@@ -125,8 +127,8 @@ func (w *RDSWorker) createInstance(crd *crds.PostgresDB, masterScrt *secret.DBSe
 		Size:           crd.Spec.Size,
 		MasterPassword: masterScrt.Password,
 		MasterUsername: masterScrt.Username,
-		Backups:        false,
-		MultiAZ:        false,
+		Backups:        w.config.BackupRetention,
+		MultiAZ:        w.config.MultiAZ,
 		Tags: map[string]string{
 			"Namespace":                crd.ObjectMeta.Namespace,
 			"Resource":                 crd.ObjectMeta.Name,
