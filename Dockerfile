@@ -1,5 +1,12 @@
 FROM golang:1.9 as dep
 RUN go get -u github.com/golang/dep/cmd/dep
+WORKDIR /go/src/github.com/MYOB-Technology/ops-kube-db-operator
+COPY ./Gopkg.lock ./Gopkg.toml ./
+RUN dep ensure -vendor-only
+# Pre cache the image by running go install need to copy in main.go and pkg dir to do this
+COPY ./main.go ./
+COPY ./pkg ./pkg
+RUN go install -v
 
 FROM golang:1.9 as builder
 COPY --from=dep /go/bin/dep /go/bin/dep

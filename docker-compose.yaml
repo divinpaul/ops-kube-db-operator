@@ -4,7 +4,7 @@ version: '2.3'
 services:
   base: &base
     volumes:
-      - .:/go/src/github.com/MYOB-Technology/ops-kube-db-operator
+      - ./pkg:/go/src/github.com/MYOB-Technology/ops-kube-db-operator/pkg
       - $HOME/.kube:/root/.kube
       - $HOME/.aws:/root/.aws
     working_dir: /go/src/github.com/MYOB-Technology/ops-kube-db-operator
