@@ -21,6 +21,8 @@ type CreateInstanceInput struct {
 	MasterUsername string
 	MasterPassword string
 	Tags           map[string]string
+	SubnetGroup    string
+	SecurityGroups []*string
 }
 
 // CreateInstanceInput represents output data from RDS instance creation
@@ -74,6 +76,8 @@ func (a *DBInstanceManager) Create(input *CreateInstanceInput) (*CreateInstanceO
 		MasterUserPassword:         aws.String(input.MasterPassword),
 		MasterUsername:             aws.String(input.MasterUsername),
 		Tags:                       mapToTags(input.Tags),
+		DBSubnetGroupName:          aws.String(input.SubnetGroup),
+		VpcSecurityGroupIds:        input.SecurityGroups,
 	})
 
 	if err != nil {

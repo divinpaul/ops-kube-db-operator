@@ -21,6 +21,8 @@ type RDSConfig struct {
 	OperatorVersion string
 	BackupRetention bool
 	MultiAZ         bool
+	SubnetGroup     string
+	SecurityGroups  []*string
 }
 
 // RDSWorker creates an RDS instance for every postgres
@@ -129,6 +131,8 @@ func (w *RDSWorker) createInstance(crd *crds.PostgresDB, masterScrt *secret.DBSe
 		MasterUsername: masterScrt.Username,
 		Backups:        w.config.BackupRetention,
 		MultiAZ:        w.config.MultiAZ,
+		SubnetGroup:    w.config.SubnetGroup,
+		SecurityGroups: w.config.SecurityGroups,
 		Tags: map[string]string{
 			"Namespace":                crd.ObjectMeta.Namespace,
 			"Resource":                 crd.ObjectMeta.Name,

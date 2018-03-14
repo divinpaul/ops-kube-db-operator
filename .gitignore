@@ -19,3 +19,4 @@ debug
 vendor/
 
 ops-kube-db-operator
+.idea
