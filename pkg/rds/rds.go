@@ -20,6 +20,8 @@ type CreateInstanceInput struct {
 	MultiAZ        bool
 	MasterUsername string
 	MasterPassword string
+	SubnetGroup    string
+	SecurityGroups []*string
 	Tags           map[string]string
 }
 
@@ -73,7 +75,9 @@ func (a *DBInstanceManager) Create(input *CreateInstanceInput) (*CreateInstanceO
 		PreferredBackupWindow:      aws.String("13:30-14:30"),         // Sun 00:30-01:30 AEDT
 		MasterUserPassword:         aws.String(input.MasterPassword),
 		MasterUsername:             aws.String(input.MasterUsername),
+		DBSubnetGroupName:          aws.String(input.SubnetGroup),
 		Tags:                       mapToTags(input.Tags),
+		VpcSecurityGroupIds:        input.SecurityGroups,
 	})
 
 	if err != nil {

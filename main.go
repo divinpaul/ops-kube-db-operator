@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -23,6 +24,10 @@ import (
 
 var version = "snapshot"
 var dbEnvironment string
+var kubeconfig string
+var subnetGroup string
+var sgList string
+var sgIDs []*string
 
 func main() {
 	flag.Parse()
@@ -31,14 +36,6 @@ func main() {
 	stopCh := signals.SetupSignalHandler()
 
 	var kubeconfig string
-
-	flag.StringVar(&kubeconfig, "kubeconfig", "", "kubeconfig file")
-	flag.Parse()
-
-	// if no flag has been passed, read kubeconfig file from environment
-	if kubeconfig == "" {
-		kubeconfig = os.Getenv("KUBECONFIG")
-	}
 
 	var config *rest.Config
 	var err error
@@ -77,6 +74,8 @@ func main() {
 		DBEnvironment:   dbEnvironment,
 		BackupRetention: backups,
 		MultiAZ:         multiAZ,
+		SubnetGroup:     subnetGroup,
+		SecurityGroups:  sgIDs,
 	}
 	rdsWorker := worker.NewRDSWorker(manager, k8sClient, dbClient.PostgresdbV1alpha1(), rdsConfig, k8s.NewK8SCRDClient(dbClient.PostgresdbV1alpha1()))
 
@@ -89,4 +88,29 @@ func main() {
 
 func init() {
 	flag.StringVar(&dbEnvironment, "dbenv", "development", "Environment for creating RDS instances (production|development).")
+	flag.StringVar(&kubeconfig, "kubeconfig", "", "kubeconfig file")
+	flag.Parse()
+
+	// if no flag has been passed, read kubeconfig file from environment
+	if kubeconfig == "" {
+		kubeconfig = os.Getenv("KUBECONFIG")
+	}
+
+	subnetGroup = os.Getenv("DB_SUBNET_GROUP")
+	sgList = os.Getenv("DB_SECURITY_GROUP_IDS")
+
+	if subnetGroup == "" {
+		glog.Error("please provide a subnet group")
+		return
+	}
+
+	if sgList == "" {
+		glog.Error("please provide a comma separated list of security group ids.")
+		return
+	}
+
+	t := strings.Split(sgList, ",")
+	for _, v := range t {
+		sgIDs = append(sgIDs, &v)
+	}
 }
