@@ -1,5 +1,9 @@
 FROM golang:1.9 as dep
 RUN go get -u github.com/golang/dep/cmd/dep
+RUN go get -u github.com/alecthomas/gometalinter
+RUN gometalinter --install
+RUN go get -u github.com/golang/mock/gomock
+RUN go get -u github.com/golang/mock/mockgen
 WORKDIR /go/src/github.com/MYOB-Technology/ops-kube-db-operator
 COPY ./Gopkg.lock ./Gopkg.toml ./
 RUN dep ensure -vendor-only

@@ -5,6 +5,7 @@
 *.dylib
 .vscode/
 debug
+.idea
 
 # Test binary, build with `go test -c`
 *.test
@@ -19,3 +20,4 @@ debug
 vendor/
 
 ops-kube-db-operator
+.DS_Store

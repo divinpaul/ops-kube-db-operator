@@ -1,194 +1,155 @@
 package worker_test
 
 import (
-	"errors"
 	"testing"
 
 	crds "github.com/MYOB-Technology/ops-kube-db-operator/pkg/apis/postgresdb/v1alpha1"
-	fakeCrd "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned/fake"
-	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/rds"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/worker"
 
 	"fmt"
 	"strings"
 
+	fake2 "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned/fake"
+	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/database"
+	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/k8s"
+	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/mocks"
+	"github.com/golang/mock/gomock"
 	_ "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	k8sTesting "k8s.io/client-go/testing"
 )
 
-type mockDBInstanceCreator struct {
-	rds.DBInstanceCreator
-	input             *rds.CreateInstanceInput
-	output            *rds.CreateInstanceOutput
-	shouldErrorCreate bool
-}
-
-type mockCRDClient struct {
-	Calls []crds.PostgresDB
-}
-
-func (c *mockCRDClient) Update(crd *crds.PostgresDB) (*crds.PostgresDB, error) {
-	c.Calls = append(c.Calls, *crd)
-	return crd, nil
-}
-
-func (m *mockDBInstanceCreator) Create(input *rds.CreateInstanceInput) (*rds.CreateInstanceOutput, error) {
-	if m.shouldErrorCreate {
-		return nil, errors.New("test error")
-	}
-	m.input = input
-	return m.output, nil
-}
-
-var (
-	defaultMockDBInstanceCreator = &mockDBInstanceCreator{shouldErrorCreate: false}
-	defaultRdsConfig             = &worker.RDSConfig{}
-)
-
-func TestCreateFunction(t *testing.T) {
-	// Given
-	expectedK8sActions := []expectedActions{
-		// Master secret initial save
-		{namespace: "kube-system", verb: "get", resource: "secrets", name: "crdname-master"},
-		{namespace: "kube-system", verb: "get", resource: "secrets", name: "crdname-master"},
-		{namespace: "kube-system", verb: "create", resource: "secrets"},
-		// Master secret update with rds instances
-		{namespace: "kube-system", verb: "get", resource: "secrets", name: "crdname-master"},
-		{namespace: "kube-system", verb: "get", resource: "secrets", name: "crdname-master"},
-		{namespace: "kube-system", verb: "update", resource: "secrets"},
-		// Admin secret save
-		{namespace: "test-namespace", verb: "get", resource: "secrets", name: "crdname-admin"},
-		{namespace: "test-namespace", verb: "get", resource: "secrets", name: "crdname-admin"},
-		{namespace: "test-namespace", verb: "create", resource: "secrets"},
-		// Metrics Exporter secret save
-		{namespace: "test-namespace-shadow", verb: "get", resource: "secrets", name: "crdname-metrics-exporter"},
-		{namespace: "test-namespace-shadow", verb: "get", resource: "secrets", name: "crdname-metrics-exporter"},
-		{namespace: "test-namespace-shadow", verb: "create", resource: "secrets"},
-		// Metrics Exporter config map save
-		{namespace: "test-namespace-shadow", verb: "get", resource: "configmaps", name: "crdname-metrics-exporter"},
-		{namespace: "test-namespace-shadow", verb: "create", resource: "configmaps"},
-		// Metrics Exporter service save
-		{namespace: "test-namespace-shadow", verb: "get", resource: "services", name: "crdname-metrics-exporter"},
-		{namespace: "test-namespace-shadow", verb: "create", resource: "services"},
-		// Metrics Exporter deployment save
-		{namespace: "test-namespace-shadow", verb: "get", resource: "deployments", name: "crdname-metrics-exporter"},
-		{namespace: "test-namespace-shadow", verb: "create", resource: "deployments"},
-	}
-
-	wrkr, defaultMockClientSet, _ := createSuccessfulRDSWorker()
-	crd := crds.PostgresDB{}
-	crd.ObjectMeta.Name = "crdname"
-	crd.ObjectMeta.Namespace = "test-namespace"
-
-	// When
-	wrkr.OnCreate(&crd)
-
-	// Then
-	assertActions(t, expectedK8sActions, defaultMockClientSet.Actions())
-}
-
-func TestCreateFunctionWithCreateDBError(t *testing.T) {
-	// Given
-	expectedK8sActions := []expectedActions{
-		{namespace: "kube-system", verb: "get", resource: "secrets", name: "crdname-master"},
-		{namespace: "kube-system", verb: "get", resource: "secrets", name: "crdname-master"},
-		{namespace: "kube-system", verb: "create", resource: "secrets"},
-	}
-
-	wrkr, defaultMockClientSet, _ := createDBErrorRDSWorker()
-	crd := crds.PostgresDB{}
-	crd.ObjectMeta.Name = "crdname"
-	crd.ObjectMeta.Namespace = "test-namespace"
-
-	// when
-	wrkr.OnCreate(&crd)
-
-	// then
-	assertActions(t, expectedK8sActions, defaultMockClientSet.Actions())
-}
-
-func TestCreateFunctionWithUpdateCRD(t *testing.T) {
-	// Given
-	wrkr, _, crdClient := createSuccessfulRDSWorker()
-	crd := crds.PostgresDB{}
-	crd.ObjectMeta.Name = "crdname"
-	crd.ObjectMeta.Namespace = "test-namespace"
-
-	// when
-	wrkr.OnCreate(&crd)
-
-	// assert
-	if len(crdClient.Calls) != 2 {
-		t.Errorf("expected two calls got %d", len(crdClient.Calls))
-	}
-
-	if crdClient.Calls[0].Status.Ready != "Creating database instance crdname-..." {
-		t.Errorf("expected status Ready of creating db, got %s", crdClient.Calls[0].Status.Ready)
-	}
-
-	if crdClient.Calls[0].Status.ARN != "" {
-		t.Errorf("expected status ARN to be empty, got %s", crdClient.Calls[0].Status.ARN)
-	}
-
-	if crdClient.Calls[1].Status.Ready != "available" {
-		t.Errorf("expected status Ready of available got %s", crdClient.Calls[1].Status.Ready)
-	}
-
-	if crdClient.Calls[1].Status.ARN != "test-arn" {
-		t.Errorf("expected status ARN of test-arn got %s", crdClient.Calls[1].Status.ARN)
-	}
-}
-
-func TestCreateFunctionWithUpdateCRDOnDBCreateError(t *testing.T) {
-	// Given
-	wrkr, _, crdClient := createDBErrorRDSWorker()
-	crd := crds.PostgresDB{}
-	crd.ObjectMeta.Name = "crdname"
-	crd.ObjectMeta.Namespace = "test-namespace"
-
-	// when
-	wrkr.OnCreate(&crd)
-
-	// assert
-	if len(crdClient.Calls) != 2 {
-		t.Errorf("expected two calls got %d", len(crdClient.Calls))
-	}
-
-	if crdClient.Calls[1].Status.Ready != "There was an error creating database instance crdname-: test error" {
-		t.Errorf("expected status Ready to have error, got %s", crdClient.Calls[1].Status.Ready)
-	}
-
-	if crdClient.Calls[1].Status.ARN != "" {
-		t.Errorf("expected status ARN to be empty, got %s", crdClient.Calls[1].Status.ARN)
-	}
-}
-
-type expectedActions struct {
+type expectedAction struct {
 	namespace string
 	verb      string
 	resource  string
 	name      string
 }
 
-func assertActions(t *testing.T, expected []expectedActions, actual []k8sTesting.Action) {
-	if len(expected) != len(actual) {
-		t.Fatalf("expected %d action(s): got(%d)[%s]", len(expected), len(actual), actual)
+func TestOnCreate_HappyPath(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	crd := crds.PostgresDB{}
+	crd.ObjectMeta.Name = "crdname"
+	crd.ObjectMeta.Namespace = "test-namespace"
+	crd.ObjectMeta.UID = "2098284b-1daf-11e8-b83f-028cde27f28a"
+	crd.Spec.Size = "db.m4.large"
+	crd.Spec.Storage = 5
+
+	// fake client set to assert actions
+	f := fake.NewSimpleClientset()
+	crdF := fake2.NewSimpleClientset()
+
+	wrkr, retDBAvailable := getWorker(ctrl, crd, database.StatusAvailable, f, crdF)
+
+	// Given
+	expectedK8sActions := []expectedAction{
+
+		// Master secret initial save
+		{namespace: "kube-system", verb: "get", resource: "secrets", name: getCRDNameForCredential(crd.Namespace, crd.Name, retDBAvailable.Credentials[0].ID)},
+		{namespace: "kube-system", verb: "create", resource: "secrets"},
+
+		// Master secret update host info
+		{namespace: "kube-system", verb: "get", resource: "secrets", name: getCRDNameForCredential(crd.Namespace, crd.Name, retDBAvailable.Credentials[0].ID)},
+		{namespace: "kube-system", verb: "update", resource: "secrets"},
+
+		// Application User secret save
+		{namespace: "test-namespace", verb: "get", resource: "secrets", name: getCRDNameForCredential(crd.Namespace, crd.Name, retDBAvailable.Credentials[1].ID)},
+		{namespace: "test-namespace", verb: "create", resource: "secrets"},
+
+		// Application Admin secret save
+		{namespace: "test-namespace", verb: "get", resource: "secrets", name: getCRDNameForCredential(crd.Namespace, crd.Name, retDBAvailable.Credentials[2].ID)},
+		{namespace: "test-namespace", verb: "create", resource: "secrets"},
+
+		// Readonly secret save
+		{namespace: "test-namespace", verb: "get", resource: "secrets", name: getCRDNameForCredential(crd.Namespace, crd.Name, retDBAvailable.Credentials[3].ID)},
+		{namespace: "test-namespace", verb: "create", resource: "secrets"},
+
+		//System secret save
+		{namespace: "test-namespace-shadow", verb: "get", resource: "secrets", name: getCRDNameForCredential(crd.Namespace, crd.Name, retDBAvailable.Credentials[4].ID)},
+		{namespace: "test-namespace-shadow", verb: "create", resource: "secrets"},
+
+		// Metrics Exporter config map save
+		{namespace: "test-namespace-shadow", verb: "get", resource: "configmaps", name: "crdname-metrics-exporter"},
+		{namespace: "test-namespace-shadow", verb: "create", resource: "configmaps"},
+
+		// Metrics Exporter service save
+		{namespace: "test-namespace-shadow", verb: "get", resource: "services", name: "crdname-metrics-exporter"},
+		{namespace: "test-namespace-shadow", verb: "create", resource: "services"},
+
+		// Metrics Exporter deployment save
+		{namespace: "test-namespace-shadow", verb: "get", resource: "deployments", name: "crdname-metrics-exporter"},
+		{namespace: "test-namespace-shadow", verb: "create", resource: "deployments"},
 	}
 
-	for i, action := range actual {
-		expectedAction := expected[i]
-		if expectedAction.namespace != action.GetNamespace() {
-			t.Errorf("Expected namespace:%s, got:%s for action[%d]: %s", expectedAction.namespace, action.GetNamespace(), i, action)
+	wrkr.PostgresDBValidator.(*mocks.MockPostgresDBValidator).EXPECT().Validate(gomock.Any()).Return(nil).Times(1)
+	wrkr.DBCreateGetter.(*mocks.MockDBCreateGetter).EXPECT().GetDB(gomock.Any()).Return(nil, nil).Times(1)
+	wrkr.DBCreateGetter.(*mocks.MockDBCreateGetter).EXPECT().CreateDB(gomock.Any(), gomock.Any()).Return(retDBAvailable, nil).Times(1)
+	wrkr.DBCreateGetter.(*mocks.MockDBCreateGetter).EXPECT().GetDB(gomock.Any()).Return(retDBAvailable, nil).Times(1)
+
+	// When
+	wrkr.OnCreate(&crd)
+
+	// Then
+	assertActions(t, expectedK8sActions, f.Actions())
+}
+
+func TestOnCreate_WrongCRD(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	crd := crds.PostgresDB{}
+	crd.Namespace = "test"
+	crd.Name = "test"
+	crd.ObjectMeta.UID = "2098284b-1daf-11e8-b83f-028cde27f28a"
+
+	crdF := fake2.NewSimpleClientset()
+	crdF.PostgresdbV1alpha1().PostgresDBs(crd.Namespace).Create(&crd)
+
+	dbWrkr, _ := getWorker(ctrl, crd, database.StatusAvailable, fake.NewSimpleClientset(), crdF)
+	gomock.InOrder(
+		dbWrkr.PostgresDBValidator.(*mocks.MockPostgresDBValidator).EXPECT().Validate(gomock.Any()).Return(fmt.Errorf("Something exploded")).Times(1),
+	)
+	dbWrkr.Logger.(*mocks.MockLogger).EXPECT().Error("invalid postgresdb object: Something exploded").Times(1)
+	dbWrkr.OnCreate(&crd)
+
+}
+
+func isMatchingNamespace(e expectedAction, a k8sTesting.Action) bool {
+	return e.namespace == a.GetNamespace()
+}
+
+func isMatchingVerbResource(e expectedAction, a k8sTesting.Action) bool {
+	return a.Matches(e.verb, e.resource)
+}
+
+func isMatchingName(e expectedAction, a k8sTesting.Action) bool {
+	return e.name == "" || containsField(a, "Name", e.name)
+}
+
+func isActionExpected(expecteds []expectedAction, a k8sTesting.Action) bool {
+	for _, e := range expecteds {
+		if isMatchingNamespace(e, a) &&
+			isMatchingVerbResource(e, a) &&
+			isMatchingName(e, a) {
+			return true
+		}
+	}
+	return false
+}
+
+func assertActions(t *testing.T, expecteds []expectedAction, actual []k8sTesting.Action) {
+	if len(expecteds) != len(actual) {
+		t.Fatalf("expected %d action(s): got(%d)[%s]", len(expecteds), len(actual), actual)
+	}
+	for _, action := range actual {
+		//for i, action := range actual {
+		//fmt.Printf("index %d, ACTION: %v %v %v\n", i, action.GetResource(), action.GetVerb(), action.GetNamespace())
+		if !isActionExpected(expecteds, action) {
+			t.Errorf("cannot find the action %v", action)
 		}
 
-		if !action.Matches(expectedAction.verb, expectedAction.resource) {
-			t.Errorf("Expected verb:%s resource:%s to match for action[%d]: %s", expectedAction.verb, expectedAction.resource, i, action)
-		}
-
-		if expectedAction.name != "" && !containsField(action, "Name", expectedAction.name) {
-			t.Errorf("Expected action to have resource with Name:%s for action[%d]: %#v", expectedAction.name, i, action)
-		}
 	}
 }
 
@@ -199,29 +160,47 @@ func containsField(object interface{}, fieldName, fieldValue string) bool {
 	return strings.Contains(strings.ToLower(objectString), strings.ToLower(field))
 }
 
-func createSuccessfulRDSWorker() (*worker.RDSWorker, *fake.Clientset, *mockCRDClient) {
-	defaultMockCrds := fakeCrd.NewSimpleClientset()
-
-	defaultMockClientSet := fake.NewSimpleClientset()
-
-	crdClient := &mockCRDClient{}
-
-	defaultMockDBInstanceCreator := &mockDBInstanceCreator{shouldErrorCreate: false}
-	defaultMockDBInstanceCreator.output = &rds.CreateInstanceOutput{ARN: "test-arn"}
-
-	wrkr := worker.NewRDSWorker(defaultMockDBInstanceCreator, defaultMockClientSet, defaultMockCrds.PostgresdbV1alpha1(), defaultRdsConfig, crdClient)
-
-	return wrkr, defaultMockClientSet, crdClient
+func getCRDNameForCredential(namespace string, name string, id database.CredentialID) string {
+	return fmt.Sprintf("%s-%s-%s", namespace, name, string(id))
 }
 
-func createDBErrorRDSWorker() (*worker.RDSWorker, *fake.Clientset, *mockCRDClient) {
-	defaultMockCrds := fakeCrd.NewSimpleClientset()
+func getWorker(ctrl *gomock.Controller, crd crds.PostgresDB, status database.Status, f *fake.Clientset, crdF *fake2.Clientset) (*worker.DBWorker, *database.Database) {
 
-	defaultMockClientSet := fake.NewSimpleClientset()
+	config := worker.NewConfig(100, "shadow")
+	crdF.PostgresdbV1alpha1().PostgresDBs(crd.Namespace).Create(&crd)
 
-	crdClient := &mockCRDClient{}
+	c := k8s.NewStoreCreds(f)
+	r := mocks.NewMockDBCreateGetter(ctrl)
+	m := k8s.NewMetricsExporter(f)
+	v := mocks.NewMockPostgresDBValidator(ctrl)
+	l := mocks.NewMockLogger(ctrl)
+	tfm := worker.NewOptimus()
+	s := k8s.NewCRDClient(crdF)
 
-	wrkr := worker.NewRDSWorker(&mockDBInstanceCreator{shouldErrorCreate: true}, defaultMockClientSet, defaultMockCrds.PostgresdbV1alpha1(), defaultRdsConfig, crdClient)
+	// retVals
+	id := fmt.Sprintf("%s-%s-%s", crd.Namespace, crd.Name, crd.UID)
 
-	return wrkr, defaultMockClientSet, crdClient
+	creds := database.Credentials{
+		database.CredTypeAdmin:       &database.Credential{ID: database.CredentialID("master")},
+		database.CredTypeAppAdmin:    &database.Credential{ID: database.CredentialID("appadmin")},
+		database.CredTypeAppUser:     &database.Credential{ID: database.CredentialID("appuser")},
+		database.CredTypeAppReadOnly: &database.Credential{ID: database.CredentialID("appreadonly")},
+		database.CredTypeMonitoring:  &database.Credential{ID: database.CredentialID("monitoring")},
+	}
+	retDBAvailable := &database.Database{
+		Status:      status,
+		ID:          database.DatabaseID(id),
+		Name:        crd.Name,
+		Credentials: creds,
+	}
+
+	wrkr := worker.NewDBWorker(r, c, m, config, v, l, tfm, s)
+	return wrkr, retDBAvailable
+}
+
+func alwaysHappyCalls(wrkr *worker.DBWorker, retDB *database.Database) {
+	wrkr.PostgresDBValidator.(*mocks.MockPostgresDBValidator).EXPECT().Validate(gomock.Any()).Return(nil).Times(1)
+	wrkr.DBCreateGetter.(*mocks.MockDBCreateGetter).EXPECT().GetDB(gomock.Any()).Return(nil, nil).Times(1)
+	wrkr.DBCreateGetter.(*mocks.MockDBCreateGetter).EXPECT().CreateDB(gomock.Any(), gomock.Any()).Return(retDB, nil).Times(1)
+	wrkr.DBCreateGetter.(*mocks.MockDBCreateGetter).EXPECT().GetDB(gomock.Any()).Return(retDB, nil).Times(1)
 }

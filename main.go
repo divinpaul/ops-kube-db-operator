@@ -4,7 +4,6 @@ import (
 	"flag"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/golang/glog"
 
@@ -13,29 +12,31 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	clientset "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
-	informers "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions"
-
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/controller"
+
+	"time"
+
+	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/k8s"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/rds"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/signals"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/worker"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	rds2 "github.com/aws/aws-sdk-go/service/rds"
+	"github.com/aws/aws-sdk-go/service/rds/rdsiface"
 )
 
-var version = "snapshot"
-var dbEnvironment string
 var kubeconfig string
+var region string
 var subnetGroup string
-var sgList string
 var sgIDs []*string
+var nsSuffix string
 
 func main() {
-	flag.Parse()
 
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := signals.SetupSignalHandler()
-
-	var kubeconfig string
 
 	var config *rest.Config
 	var err error
@@ -43,61 +44,77 @@ func main() {
 	// if flag has not been passed and env not set, presume running in cluster
 	if kubeconfig != "" {
 		glog.Infof("using kubeconfig %v", kubeconfig)
-		config, _ = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 	} else {
 		glog.Infof("running inside cluster")
-		config, _ = rest.InClusterConfig()
+		config, err = rest.InClusterConfig()
+	}
+
+	if nil != err {
+		glog.Errorf("error creating config, %v", err)
+		return
 	}
 
 	k8sClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		glog.Fatalf("Error building k8s clientset: %s", err.Error())
+		glog.Fatalf("error building k8s clientset: %s", err.Error())
 	}
 
-	dbClient, err := clientset.NewForConfig(config)
+	crdClient, err := clientset.NewForConfig(config)
 	if err != nil {
-		glog.Fatalf("Error building CRD clientset: %s", err.Error())
+		glog.Fatalf("error building CRD clientset: %s", err.Error())
 	}
 
-	backups := false
-	multiAZ := false
-	if dbEnvironment == "production" {
-		backups = true
-		multiAZ = true
+	rdsClient, err := getRDSClient()
+	if err != nil {
+		glog.Fatalf("error cannot get rds client: %s", err.Error())
 	}
 
-	manager := rds.NewDBInstanceManager()
-	rdsConfig := &worker.RDSConfig{
-		OperatorVersion: version,
-		DefaultSize:     "t1.Small", // hardcoded for now
-		DefaultStorage:  5,          // hardcoded for now
-		DBEnvironment:   dbEnvironment,
-		BackupRetention: backups,
-		MultiAZ:         multiAZ,
-		SubnetGroup:     subnetGroup,
-		SecurityGroups:  sgIDs,
+	rdsConfig := rds.NewRDSTransformerConfig(&subnetGroup, sgIDs)
+	rdsTransformer := rds.NewBumblebee(rdsConfig)
+	wrkr := worker.NewDBWorker(
+		rds.NewRDSImpure(rdsClient, rdsTransformer),
+		k8s.NewStoreCreds(k8sClient),
+		k8s.NewMetricsExporter(k8sClient),
+		worker.NewConfig(100000, nsSuffix),
+		worker.NewPostgresDBValidator(),
+		worker.NewLogger(),
+		worker.NewOptimus(),
+		k8s.NewCRDClient(crdClient),
+	)
+
+	factory := externalversions.NewSharedInformerFactory(crdClient, time.Second*30)
+	go factory.Start(stopCh)
+
+	crdController := controller.New(factory, wrkr)
+	crdController.Run(stopCh)
+}
+
+func getRDSClient() (rdsiface.RDSAPI, error) {
+	c := aws.NewConfig().WithRegion(region)
+	s, err := session.NewSession(c)
+	if err != nil {
+		return nil, err
 	}
-	rdsWorker := worker.NewRDSWorker(manager, k8sClient, dbClient.PostgresdbV1alpha1(), rdsConfig, k8s.NewK8SCRDClient(dbClient.PostgresdbV1alpha1()))
-
-	dbInformerFactory := informers.NewSharedInformerFactory(dbClient, time.Second*30)
-	go dbInformerFactory.Start(stopCh)
-
-	rdsController := controller.New(dbInformerFactory, rdsWorker)
-	rdsController.Run(stopCh)
+	return rds2.New(s), nil
 }
 
 func init() {
-	flag.StringVar(&dbEnvironment, "dbenv", "development", "Environment for creating RDS instances (production|development).")
 	flag.StringVar(&kubeconfig, "kubeconfig", "", "kubeconfig file")
+	flag.StringVar(&nsSuffix, "ns-suffix", "", "namespace suffix (or env NS_SUFFIX)")
 	flag.Parse()
 
 	// if no flag has been passed, read kubeconfig file from environment
 	if kubeconfig == "" {
 		kubeconfig = os.Getenv("KUBECONFIG")
 	}
-
+	region = os.Getenv("AWS_REGION")
 	subnetGroup = os.Getenv("DB_SUBNET_GROUP")
-	sgList = os.Getenv("DB_SECURITY_GROUP_IDS")
+	sgList := os.Getenv("DB_SECURITY_GROUP_IDS")
+
+	if region == "" {
+		region = "ap-southeast-2"
+	}
 
 	if subnetGroup == "" {
 		glog.Error("please provide a subnet group")
@@ -112,5 +129,9 @@ func init() {
 	t := strings.Split(sgList, ",")
 	for _, v := range t {
 		sgIDs = append(sgIDs, &v)
+	}
+
+	if nsSuffix == "" {
+		nsSuffix = os.Getenv("NS_SUFFIX")
 	}
 }

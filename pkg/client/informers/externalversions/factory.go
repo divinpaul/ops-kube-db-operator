@@ -22,16 +22,15 @@ OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 package externalversions
 
 import (
-	reflect "reflect"
-	sync "sync"
-	time "time"
-
 	versioned "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions/internalinterfaces"
 	postgresdb "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/informers/externalversions/postgresdb"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
+	reflect "reflect"
+	sync "sync"
+	time "time"
 )
 
 type sharedInformerFactory struct {

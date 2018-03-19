@@ -23,6 +23,12 @@ services:
     <<: *base
     entrypoint: dep
 
+  dep-dev:
+    <<: *base
+    volumes:
+      - .:/go/src/github.com/MYOB-Technology/ops-kube-db-operator
+    entrypoint: dep
+
   console:
     <<: *base
     command: sh

@@ -1,15 +1,16 @@
-package postgres
+package k8s
 
 import (
 	"fmt"
 
+	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/database"
+	"k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
-	apiv1 "k8s.io/client-go/pkg/api/v1"
-	extsv1beta1 "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
 // MetricsExporter provides an abstraction for deploying k8s MetricsExporter deployment
@@ -25,10 +26,12 @@ func NewMetricsExporter(clientset kubernetes.Interface) *MetricsExporter {
 }
 
 // Deploy MetricsExporter k8s deployment
-func (e *MetricsExporter) Deploy(namespace, crdName string) error {
-	serviceName := fmt.Sprintf("%s-metrics-exporter", crdName)
-	labels := getLabels(crdName)
+func (e *MetricsExporter) CreateMetricsExporter(s database.Scope, name string, id database.CredentialID) error {
 
+	serviceName := fmt.Sprintf("%s-metrics-exporter", name)
+	labels := getLabels(name)
+
+	namespace := string(s)
 	if err := e.applyConfigMap(labels, namespace, serviceName); nil != err {
 		return err
 	}
@@ -37,7 +40,7 @@ func (e *MetricsExporter) Deploy(namespace, crdName string) error {
 		return err
 	}
 
-	return e.applyDeployment(labels, namespace, serviceName, metricsExporterPort)
+	return e.applyDeployment(labels, namespace, serviceName, metricsExporterPort, string(id))
 }
 
 func (e *MetricsExporter) applyConfigMap(labels map[string]string, namespace, name string) error {
@@ -49,14 +52,14 @@ func (e *MetricsExporter) applyConfigMap(labels map[string]string, namespace, na
 	}
 
 	if errors.IsNotFound(err) {
-		_, err = e.clientset.CoreV1().ConfigMaps(namespace).Create(updateConfigMap(&apiv1.ConfigMap{}, labels, namespace, name))
+		_, err = e.clientset.CoreV1().ConfigMaps(namespace).Create(updateConfigMap(&v1.ConfigMap{}, labels, namespace, name))
 		return err
 	}
 
 	return err
 }
 
-func updateConfigMap(cm *apiv1.ConfigMap, labels map[string]string, namespace, name string) *apiv1.ConfigMap {
+func updateConfigMap(cm *v1.ConfigMap, labels map[string]string, namespace, name string) *v1.ConfigMap {
 	updateCommonObjectMeta(cm.GetObjectMeta(), labels, namespace, name)
 	cm.GetObjectMeta().SetAnnotations(map[string]string{"prometheus.io/scrape": "true"})
 	cm.Data = map[string]string{"queries.yaml": exporterQueries}
@@ -72,46 +75,46 @@ func (e *MetricsExporter) applyService(labels map[string]string, namespace, name
 	}
 
 	if errors.IsNotFound(err) {
-		_, err = e.clientset.CoreV1().Services(namespace).Create(updateService(&apiv1.Service{}, labels, namespace, name, port))
+		_, err = e.clientset.CoreV1().Services(namespace).Create(updateService(&v1.Service{}, labels, namespace, name, port))
 		return err
 	}
 
 	return err
 }
 
-func updateService(svc *apiv1.Service, labels map[string]string, namespace, name string, port int) *apiv1.Service {
+func updateService(svc *v1.Service, labels map[string]string, namespace, name string, port int) *v1.Service {
 	updateCommonObjectMeta(svc.GetObjectMeta(), labels, namespace, name)
 	svc.GetObjectMeta().SetAnnotations(map[string]string{"prometheus.io/scrape": "true"})
-	svc.Spec = apiv1.ServiceSpec{
-		Ports:    []apiv1.ServicePort{{Port: int32(port), TargetPort: intstr.FromInt(port)}},
+	svc.Spec = v1.ServiceSpec{
+		Ports:    []v1.ServicePort{{Port: int32(port), TargetPort: intstr.FromInt(port)}},
 		Selector: labels,
 	}
 
 	return svc
 }
 
-func (e *MetricsExporter) applyDeployment(labels map[string]string, namespace, name string, port int) error {
+func (e *MetricsExporter) applyDeployment(labels map[string]string, namespace, name string, port int, id string) error {
 	obj, err := e.clientset.ExtensionsV1beta1().Deployments(namespace).Get(name, metav1.GetOptions{})
 
 	if err == nil {
 		// Already exists so updating
-		deployment := updateDeployment(obj, labels, namespace, name, port)
+		deployment := updateDeployment(obj, labels, namespace, name, port, id)
 		_, err = e.clientset.ExtensionsV1beta1().Deployments(namespace).Update(deployment)
 		return err
 	}
 
 	if errors.IsNotFound(err) {
 		// Doesn't exist so creating
-		_, err = e.clientset.ExtensionsV1beta1().Deployments(namespace).Create(updateDeployment(&extsv1beta1.Deployment{}, labels, namespace, name, port))
+		_, err = e.clientset.ExtensionsV1beta1().Deployments(namespace).Create(updateDeployment(&v1beta1.Deployment{}, labels, namespace, name, port, id))
 		return err
 	}
 	return err
 }
 
-func updateDeployment(deployment *extsv1beta1.Deployment, labels map[string]string, namespace, name string, port int) *extsv1beta1.Deployment {
-	probe := &apiv1.Probe{
-		Handler: apiv1.Handler{
-			HTTPGet: &apiv1.HTTPGetAction{
+func updateDeployment(deployment *v1beta1.Deployment, labels map[string]string, namespace, name string, port int, id string) *v1beta1.Deployment {
+	probe := &v1.Probe{
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
 				Path: "/",
 				Port: intstr.FromInt(port),
 			},
@@ -119,47 +122,47 @@ func updateDeployment(deployment *extsv1beta1.Deployment, labels map[string]stri
 		InitialDelaySeconds: 60,
 		TimeoutSeconds:      3,
 	}
-	deploymentSpec := extsv1beta1.DeploymentSpec{
+	deploymentSpec := v1beta1.DeploymentSpec{
 		Replicas:             int32Ptr(1),
 		RevisionHistoryLimit: int32Ptr(2),
-		Template: apiv1.PodTemplateSpec{
-			Spec: apiv1.PodSpec{
-				Containers: []apiv1.Container{{
+		Template: v1.PodTemplateSpec{
+			Spec: v1.PodSpec{
+				Containers: []v1.Container{{
 					Name:            "metrics",
 					Image:           "wrouesnel/postgres_exporter:v0.4.1",
 					ImagePullPolicy: "Always",
 					Args:            []string{"--extend.query-path=/etc/config/queries.yaml"},
-					Env: []apiv1.EnvVar{{
+					Env: []v1.EnvVar{{
 						Name: "DATA_SOURCE_NAME",
-						ValueFrom: &apiv1.EnvVarSource{
-							SecretKeyRef: &apiv1.SecretKeySelector{
-								LocalObjectReference: apiv1.LocalObjectReference{Name: name},
+						ValueFrom: &v1.EnvVarSource{
+							SecretKeyRef: &v1.SecretKeySelector{
+								LocalObjectReference: v1.LocalObjectReference{Name: id},
 								Key:                  "DATABASE_URL",
 							},
 						},
 					}},
-					Ports: []apiv1.ContainerPort{{
+					Ports: []v1.ContainerPort{{
 						Name:          "metrics",
 						ContainerPort: int32(port),
 					}},
 					LivenessProbe:  probe,
 					ReadinessProbe: probe,
-					Resources: apiv1.ResourceRequirements{
-						Requests: apiv1.ResourceList{
+					Resources: v1.ResourceRequirements{
+						Requests: v1.ResourceList{
 							"cpu":    quantity("100m"),
 							"memory": quantity("256Mi"),
 						},
 					},
-					VolumeMounts: []apiv1.VolumeMount{{
+					VolumeMounts: []v1.VolumeMount{{
 						Name:      "config-volume",
 						MountPath: "/etc/config",
 					}},
 				}},
-				Volumes: []apiv1.Volume{{
+				Volumes: []v1.Volume{{
 					Name: "config-volume",
-					VolumeSource: apiv1.VolumeSource{
-						ConfigMap: &apiv1.ConfigMapVolumeSource{
-							LocalObjectReference: apiv1.LocalObjectReference{name},
+					VolumeSource: v1.VolumeSource{
+						ConfigMap: &v1.ConfigMapVolumeSource{
+							LocalObjectReference: v1.LocalObjectReference{name},
 						},
 					},
 				}},
@@ -181,8 +184,9 @@ func updateCommonObjectMeta(objectMeta metav1.Object, labels map[string]string, 
 
 func getLabels(crdName string) map[string]string {
 	labels := map[string]string{
-		"app": "metrics-exporter",
-		"db":  crdName,
+		"deployed-with": "ops-kube-db-operator",
+		"app":           "metrics-exporter",
+		"db-name":       crdName,
 	}
 
 	return labels

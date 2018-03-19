@@ -6,11 +6,18 @@ GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
 ci: vendor test
 
+gen-mocks:
+	@docker-compose run --rm go generate ./...
+
 test:
 	@docker-compose run --rm go test ./...
 
 vendor:
 	docker-compose run --rm dep ensure -v
+
+# Share in vendor directory to ensure libraries are available for local development
+vendor-dev:
+	docker-compose run --rm dep-dev ensure -v
 
 clean:
 	docker-compose run --rm base rm -rf vendor
@@ -42,7 +49,7 @@ lint:
 	@echo "+++ Running gometalinter"
 	@docker-compose run --rm gometalinter \
 	--sort path \
-	--skip=client --skip=apis --skip=signals \
+	--skip=client --skip=apis --skip=signals --skip mocks \
 	--deadline 300s \
 	--vendor \
 	--enable-all \

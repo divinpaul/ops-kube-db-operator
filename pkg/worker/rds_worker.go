@@ -3,144 +3,221 @@ package worker
 import (
 	"fmt"
 
-	"github.com/golang/glog"
-
 	crds "github.com/MYOB-Technology/ops-kube-db-operator/pkg/apis/postgresdb/v1alpha1"
-	postgresdbv1alpha1 "github.com/MYOB-Technology/ops-kube-db-operator/pkg/client/clientset/versioned/typed/postgresdb/v1alpha1"
-	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/k8s"
-	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/postgres"
-	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/rds"
-	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/secret"
-	"k8s.io/client-go/kubernetes"
+	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/core"
+	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/database"
 )
 
-type RDSConfig struct {
-	DefaultSize     string
-	DefaultStorage  int64
-	DBEnvironment   string
-	OperatorVersion string
-	BackupRetention bool
-	SubnetGroup     string
-	SecurityGroups  []*string
-	MultiAZ         bool
+type DBWorker struct {
+	*DBWorkerConfig
+	PostgresDBValidator
+	Transformer
+	Logger
+	core.DBCreateGetter
+	core.StatusUpdater
+	core.CredentialsStorer
+	core.MetricsExporterCreator
 }
 
-// RDSWorker creates an RDS instance for every postgres
-// DB requested. It contains all the config that will
-// change per env.
-type RDSWorker struct {
-	// injected deps for testing
-	dbInstanceCreator rds.DBInstanceCreator
-	k8sClient         *k8s.Client
-	crdClient         k8s.CRDClient
-
-	// env config
-	config *RDSConfig
+type DBWorkerConfig struct {
+	checkIntervalInMillis int
+	nsSuffix              string
 }
 
-// OnCreate handles create event for postgresDB crd and
-// will orchestrate creation of RDS instance, db credentials in secrets
-// and creation of metrics exporter deployment
-func (w *RDSWorker) OnCreate(obj interface{}) {
+// NewRDSWorker returns new DBWorker instance for handling change events on postgresDB crd
+func NewDBWorker(
+	r core.DBCreateGetter,
+	c core.CredentialsStorer,
+	m core.MetricsExporterCreator,
+	cfg *DBWorkerConfig,
+	p PostgresDBValidator,
+	l Logger,
+	t Transformer,
+	u core.StatusUpdater,
+) *DBWorker {
+
+	return &DBWorker{
+		PostgresDBValidator:    p,
+		DBWorkerConfig:         cfg,
+		DBCreateGetter:         r,
+		CredentialsStorer:      c,
+		MetricsExporterCreator: m,
+		Logger:                 l,
+		Transformer:            t,
+		StatusUpdater:          u,
+	}
+}
+
+func NewConfig(c int, s string) *DBWorkerConfig {
+	return &DBWorkerConfig{
+		checkIntervalInMillis: c,
+		nsSuffix:              s,
+	}
+}
+
+func (w *DBWorker) OnCreate(obj interface{}) {
+
 	crd := obj.(*crds.PostgresDB)
-	crdName := crd.ObjectMeta.Name
-	crdNamespace := crd.ObjectMeta.Namespace
-	instanceName := fmt.Sprintf("%s-%s", crdName, crd.GetUID())
+	s := database.Scope(crd.Namespace)
 
-	masterUser, _ := postgres.NewMasterUser()
-	masterScrt, err := w.k8sClient.SaveMasterSecret(crdName, masterUser, nil, instanceName)
-
-	crd.Status.Ready = fmt.Sprintf("Creating database instance %s...", instanceName)
-	crd, err = w.crdClient.Update(crd)
-	if err != nil {
-		glog.Errorf("There was an error updating the crd: %s", err.Error())
+	// Validate the CRD
+	if err := w.Validate(crd); err != nil {
+		w.Error(fmt.Sprintf("invalid postgresdb object: %v", err))
+		updateCRDStatus(w.StatusUpdater, w.Logger, crd.Name, s, database.StatusErrored, nil)
 		return
 	}
 
-	createdInstance, err := w.createInstance(crd, masterScrt, instanceName)
+	// transform crd to our request object
+	req := w.CRDToRequest(crd)
 
+	// generate all the credentials
+	creds, err := legacyGenCredentials(req, w.DBWorkerConfig)
 	if err != nil {
-		glog.Errorf("There was an error creating database instance %s: %s", instanceName, err.Error())
-		crd.Status.Ready = fmt.Sprintf("There was an error creating database instance %s: %s", instanceName, err.Error())
-		crd, err = w.crdClient.Update(crd)
-		if err != nil {
-			glog.Errorf("There was an error updating the crd: %s", err.Error())
-		}
-
+		w.Error(fmt.Sprintf("unable to generate credentials err: %v", err))
 		return
 	}
 
-	crd.Status.Ready = "available"
-	crd.Status.ARN = createdInstance.ARN
-	crd, err = w.crdClient.Update(crd)
+	// store the credentials before creation just in case something breaks
+	// store only the master secret at this point
+	err = core.StoreDBCredentials(w.CredentialsStorer, &database.Credentials{database.CredTypeAdmin: creds[0]})
 	if err != nil {
-		glog.Errorf("There was an error updating the crd: %s", err.Error())
+		w.Error(fmt.Sprintf("unable to store master credentials in kube-system err: %v", err))
 		return
 	}
 
-	if createdInstance.AlreadyExists {
-		glog.Infof("Database instance %s already exists, so finishing...", instanceName)
+	// create database for the request
+	db, err := core.CreateDatabaseIfNotExist(w.DBCreateGetter, req, creds[database.CredTypeAdmin])
+	if nil != err {
+		w.Error(fmt.Sprintf("unable to create database err: %v", err))
+		updateCRDStatus(w.StatusUpdater, w.Logger, crd.Name, s, database.StatusErrored, nil)
+		return
+	}
+	updateCRDStatus(w.StatusUpdater, w.Logger, crd.Name, s, database.StatusUnavailable, &db.ID)
+
+	// check and wait for DB to be available
+	db, err = core.WaitForDBToBeAvailable(w.DBCreateGetter, db.ID, w.checkIntervalInMillis)
+	if err != nil {
+		w.Error(fmt.Sprintf("unable to get database status err: %v", err))
 		return
 	}
 
-	w.k8sClient.SaveMasterSecret(crdName, masterUser, createdInstance, instanceName)
+	updateCRDStatus(w.StatusUpdater, w.Logger, crd.Name, s, database.StatusAvailable, &db.ID)
 
-	// TODO: use postgres package to create new database and db users
-	conn, _ := postgres.NewRawConn(createdInstance.Address, createdInstance.Port, masterUser)
-	dd, _ := conn.CreateDatabaseDescriptor()
+	// enrich credentials with database info
+	updatedCreds := addHostInfoToCredentials(creds, db)
 
-	w.k8sClient.SaveAdminSecret(crd, dd, instanceName)
-	w.k8sClient.SaveMetricsExporterSecret(crd, dd, instanceName)
-	metricsExporter := postgres.NewMetricsExporter(w.k8sClient.Clientset)
-	err = metricsExporter.Deploy(fmt.Sprintf("%s-shadow", crdNamespace), crdName)
+	// store updated credentials
+	err = core.StoreDBCredentials(w.CredentialsStorer, &updatedCreds)
 	if err != nil {
-		glog.Errorf("There was an error creating exporter-deployment %s: %s", crdName, err.Error())
+		w.Error(fmt.Sprintf("unable to store credentials err: %v", err))
+		return
 	}
-	// TODO: Create RDS Cloudwatch metrics exporter (TBD) deployment in shadow ns
+
+	// create metrics exporter
+	err = core.CreateMetricsExporterForDB(w, getScope(req.Owner, w.DBWorkerConfig.nsSuffix), req.Name, creds[database.CredTypeMonitoring].ID)
+	if err != nil {
+		w.Error(fmt.Sprintf("unable to create metrics exporter err: %v", err))
+		return
+	}
+
 }
 
 // OnUpdate handles update event of postgresdb
-func (w *RDSWorker) OnUpdate(obj interface{}, newObj interface{}) {
+func (w *DBWorker) OnUpdate(obj interface{}, newObj interface{}) {
 	// TODO: fix no op
 }
 
 // OnDelete handles delete event of postgresdb
-func (w *RDSWorker) OnDelete(obj interface{}) {
+func (w *DBWorker) OnDelete(obj interface{}) {
 	// TODO: fix no op
 }
 
-// NewRDSWorker returns new RDSWorker instance for handling change events on postgresDB crd
-func NewRDSWorker(dbInstanceCreator rds.DBInstanceCreator, clientSet kubernetes.Interface, crdClientset postgresdbv1alpha1.PostgresdbV1alpha1Interface, config *RDSConfig, crdClient k8s.CRDClient) *RDSWorker {
-	k8sClient := k8s.NewClient(clientSet, crdClientset)
-
-	return &RDSWorker{
-		dbInstanceCreator: dbInstanceCreator,
-		k8sClient:         k8sClient,
-		config:            config,
-		crdClient:         crdClient,
+func updateCRDStatus(i core.StatusUpdater, l Logger, n string, s database.Scope, status database.Status, id *database.DatabaseID) {
+	sReq := &database.StatusRequest{
+		Name:   n,
+		Status: status,
+		ID:     id,
+		Scope:  s,
+	}
+	err := core.UpdateStatus(i, sReq)
+	if err != nil {
+		l.Error(fmt.Sprintf("unable to update crd status, %v", err))
 	}
 }
 
-func (w *RDSWorker) createInstance(crd *crds.PostgresDB, masterScrt *secret.DBSecret, instanceName string) (*rds.CreateInstanceOutput, error) {
-	glog.Infof("Creating database %s...", instanceName)
-	createdDB, err := w.dbInstanceCreator.Create(&rds.CreateInstanceInput{
-		InstanceName:   instanceName,
-		Storage:        crd.Spec.Storage,
-		Size:           crd.Spec.Size,
-		MasterPassword: masterScrt.Password,
-		MasterUsername: masterScrt.Username,
-		Backups:        w.config.BackupRetention,
-		MultiAZ:        w.config.MultiAZ,
-		SubnetGroup:    w.config.SubnetGroup,
-		SecurityGroups: w.config.SecurityGroups,
-		Tags: map[string]string{
-			"Namespace":                crd.ObjectMeta.Namespace,
-			"Resource":                 crd.ObjectMeta.Name,
-			"DBEnvironment":            w.config.DBEnvironment,
-			"CreatedBy":                "ops-kube-db-operator",
-			"CreatedByOperatorVersion": w.config.OperatorVersion,
-		},
-	})
+func genCredentials(req *database.Request, c *DBWorkerConfig) (database.Credentials, error) {
+	creds := make(database.Credentials)
 
-	return createdDB, err
+	for k, credType := range database.GetAllCredentialTypes() {
+
+		// generate password
+		pw, err := core.GenPasswords(30)
+		if err != nil {
+			return nil, err
+		}
+		id := fmt.Sprintf("%s-%s-%s", req.Owner, req.Name, database.GetUserNameForType(credType))
+
+		credential := &database.Credential{
+			Password: database.Password(*pw),
+			Username: database.GetUserNameForType(credType),
+			CredType: database.CredentialType(k),
+			ID:       database.CredentialID(id),
+			Scope:    getScopeForCredType(req.Owner, c.nsSuffix, credType),
+		}
+		creds[credType] = credential
+	}
+	return creds, nil
+}
+
+// DEPRECATED
+func legacyGenCredentials(req *database.Request, c *DBWorkerConfig) (database.Credentials, error) {
+	creds := make(database.Credentials)
+
+	pw, err := core.GenPasswords(30)
+	if err != nil {
+		return nil, err
+	}
+	u := "master"
+
+	for k, credType := range database.GetAllCredentialTypes() {
+
+		id := fmt.Sprintf("%s-%s-%s", req.Owner, req.Name, database.GetUserNameForType(credType))
+
+		credential := &database.Credential{
+			Password: database.Password(*pw),
+			Username: u,
+			CredType: database.CredentialType(k),
+			ID:       database.CredentialID(id),
+			Scope:    getScopeForCredType(req.Owner, c.nsSuffix, credType),
+		}
+		creds[credType] = credential
+	}
+	return creds, nil
+}
+
+func addHostInfoToCredentials(creds database.Credentials, db *database.Database) database.Credentials {
+	updatedCreds := make(database.Credentials)
+	for k, v := range creds {
+		v.Host = db.Host
+		v.Port = db.Port
+		updatedCreds[k] = v
+	}
+	return updatedCreds
+}
+
+func getScopeForCredType(requestNamespace string, nsSuffix string, t database.CredentialType) database.Scope {
+	retNS := requestNamespace
+	if t == database.CredTypeAdmin {
+		return database.Scope("kube-system")
+	} else if t == database.CredTypeMonitoring {
+		return getScope(requestNamespace, nsSuffix)
+	}
+	return database.Scope(retNS)
+}
+
+func getScope(ns, suffix string) database.Scope {
+	if suffix != "" {
+		return database.Scope(fmt.Sprintf("%s-%s", ns, suffix))
+	}
+	return database.Scope(ns)
 }
