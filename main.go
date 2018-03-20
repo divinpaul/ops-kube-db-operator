@@ -35,6 +35,14 @@ var nsSuffix string
 
 func main() {
 
+	if subnetGroup == "" {
+		glog.Fatalf("please provide a subnet group")
+	}
+
+	if len(sgIDs) == 0 {
+		glog.Fatalf("please provide a comma separated list of security group ids with at least one id.")
+	}
+
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := signals.SetupSignalHandler()
 
@@ -114,16 +122,6 @@ func init() {
 
 	if region == "" {
 		region = "ap-southeast-2"
-	}
-
-	if subnetGroup == "" {
-		glog.Error("please provide a subnet group")
-		return
-	}
-
-	if sgList == "" {
-		glog.Error("please provide a comma separated list of security group ids.")
-		return
 	}
 
 	t := strings.Split(sgList, ",")
