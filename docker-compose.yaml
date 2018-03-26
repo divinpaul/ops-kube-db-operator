@@ -5,6 +5,7 @@ services:
   base: &base
     volumes:
       - ./pkg:/go/src/github.com/MYOB-Technology/ops-kube-db-operator/pkg
+      - ./main.go:/go/src/github.com/MYOB-Technology/ops-kube-db-operator/main.go
       - $HOME/.kube:/root/.kube
       - $HOME/.aws:/root/.aws
     working_dir: /go/src/github.com/MYOB-Technology/ops-kube-db-operator
@@ -54,7 +55,7 @@ services:
 
   kubectl:
     image: lachlanevenson/k8s-kubectl:v1.7.6
-    working_dir: /postgres-exporter
+    working_dir: /app
     volumes:
-      - "./yaml/postgres-exporter:/postgres-exporter"
+      - ".:/app"
       - "$HOME/.kube:/root/.kube"

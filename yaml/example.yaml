@@ -1,7 +1,9 @@
+---
 apiVersion: myob.com/v1alpha1
 kind: PostgresDB
 metadata:
   name: example-db
+  namespace: platform-enablement
 spec:
   size: "db.t2.small"
-  storage: "10"
+  storage: 10
