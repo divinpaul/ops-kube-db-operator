@@ -77,11 +77,12 @@ vendor:
 %-dev-red: ns := platform-enablement
 %-dev-red: postgresName := $(shell docker-compose run --rm kubectl get postgresdbs --all-namespaces | grep platform-enablement | awk {'print $$2'})
 
-watch-%:
+run-%:
 	@echo "+++ Running outside cluster"
 	@docker-compose run --rm \
 		-e DB_SUBNET_GROUP=$(DB_SUBNET_GROUP) \
 		-e DB_SECURITY_GROUP_IDS=$(DB_SECURITY_GROUP_IDS) \
+		-e NS_SUFFIX=shadow \
 		go run *.go -logtostderr=true -v=2
 
 apply-%:
@@ -97,14 +98,17 @@ check-%:
 	@echo "---- check $(ns) secrets"
 	@docker-compose run --rm kubectl get secrets -n $(ns) | grep $(postgresName)
 	@echo "          "
-	@echo "---- check $(ns) deployment"
-	@docker-compose run --rm kubectl get deployment -n $(ns) | grep $(postgresName)
+	@echo "---- check $(ns)-shadow secrets"
+	@docker-compose run --rm kubectl get secrets -n $(ns)-shadow | grep $(postgresName)
 	@echo "          "
-	@echo "---- check $(ns) services"
-	@docker-compose run --rm kubectl get svc -n $(ns) | grep $(postgresName)
+	@echo "---- check $(ns)-shadow deployment"
+	@docker-compose run --rm kubectl get deployment -n $(ns)-shadow | grep $(postgresName)
 	@echo "          "
-	@echo "---- check $(ns) configMap"
-	@docker-compose run --rm kubectl get configMap -n $(ns) | grep $(postgresName)
+	@echo "---- check $(ns)-shadow services"
+	@docker-compose run --rm kubectl get svc -n $(ns)-shadow | grep $(postgresName)
+	@echo "          "
+	@echo "---- check $(ns)-shadow configMap"
+	@docker-compose run --rm kubectl get configMap -n $(ns)-shadow | grep $(postgresName)
 	@echo "          "
 	@echo "--- In kube-system"
 	@docker-compose run --rm kubectl get secrets -n kube-system | grep $(postgresName)
@@ -118,11 +122,13 @@ teardown-%:
 	@docker-compose run --rm kubectl -n $(ns) delete postgresdbs $(postgresName)
 	@echo "--- Delete $(ns) secrets"
 	@docker-compose run --rm kubectl -n $(ns) delete secrets $(shell docker-compose run --rm kubectl -n platform-enablement get secrets | grep $(postgresName) | awk {'print $$1'})
-	@echo "--- Delete $(ns) deployment"
-	@docker-compose run --rm kubectl -n $(ns) delete deployment $(postgresName)-metrics-exporter
-	@echo "--- Delete $(ns) services"
-	@docker-compose run --rm kubectl delete svc -n $(ns) $(postgresName)-metrics-exporter
-	@echo "--- Delete $(ns) configMap"
-	@docker-compose run --rm kubectl delete configMap -n $(ns) $(postgresName)-metrics-exporter
+	@echo "--- Delete $(ns)-shadow secrets"
+	docker-compose run --rm kubectl -n $(ns)-shadow delete secrets $(shell docker-compose run --rm kubectl -n platform-enablement-shadow get secrets | grep $(postgresName) | awk {'print $$1'})
+	@echo "--- Delete $(ns)-shadow deployment for metrics-exporter"
+	@docker-compose run --rm kubectl delete deployment $(postgresName)-metrics-exporter -n $(ns)-shadow
+	@echo "--- Delete $(ns)-shadow services for metrics-exporter"
+	@docker-compose run --rm kubectl delete svc $(postgresName)-metrics-exporter -n $(ns)-shadow
+	@echo "--- Delete $(ns) configMap for metrics-exporter"
+	@docker-compose run --rm kubectl delete configMap $(postgresName)-metrics-exporter -n $(ns)-shadow
 	@echo "--- Delete kube-system secrets"
 	@docker-compose run --rm kubectl -n kube-system delete secrets $(shell docker-compose run --rm kubectl -n kube-system get secrets | grep $(postgresName) | awk {'print $$1'})
