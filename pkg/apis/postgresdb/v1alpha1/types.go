@@ -37,7 +37,7 @@ type PostgresDB struct {
 // PostgresDBSpec is the spec for a DB resource
 type PostgresDBSpec struct {
 	Size    string            `json:"size,omitempty"`
-	Storage int64             `json:"storage,omitempty"`
+	Storage string            `json:"storage,omitempty"`
 	Iops    int64             `json:"iops,omitempty"`
 	HA      bool              `json:"ha,omitempty"`
 	Tags    map[string]string `json:"tags,omitempty"`
