@@ -201,15 +201,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/lib/pq"
-  packages = [
-    ".",
-    "oid"
-  ]
-  revision = "88edab0803230a3898347e77b474f8c1820a1f20"
-
-[[projects]]
-  branch = "master"
   name = "github.com/mailru/easyjson"
   packages = [
     "buffer",
@@ -500,7 +491,7 @@
   version = "v6.0.0"
 
 [[projects]]
-  branch = "master"
+  branch = "release-1.8"
   name = "k8s.io/code-generator"
   packages = [
     "cmd/client-gen",
@@ -512,21 +503,15 @@
     "cmd/client-gen/path",
     "cmd/client-gen/types",
     "cmd/conversion-gen",
-    "cmd/conversion-gen/args",
     "cmd/conversion-gen/generators",
     "cmd/deepcopy-gen",
-    "cmd/deepcopy-gen/args",
     "cmd/defaulter-gen",
-    "cmd/defaulter-gen/args",
     "cmd/informer-gen",
-    "cmd/informer-gen/args",
     "cmd/informer-gen/generators",
     "cmd/lister-gen",
-    "cmd/lister-gen/args",
-    "cmd/lister-gen/generators",
-    "pkg/util"
+    "cmd/lister-gen/generators"
   ]
-  revision = "893b4433a4ba929dd0dacebf7c8956682d7a5d5f"
+  revision = "acb3006c59dc9e9b7a2a1df2bdf9e5f4dfb36c4f"
 
 [[projects]]
   branch = "master"
@@ -552,6 +537,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "9f7fc61f21bd3ced192fc8afff3048f684e5f078037a9a0708fc6fe8e849a01d"
+  inputs-digest = "38af114450f897f38b8f28545ebf12f15608523b209232c9f9054bb7f38e4cea"
   solver-name = "gps-cdcl"
   solver-version = 1

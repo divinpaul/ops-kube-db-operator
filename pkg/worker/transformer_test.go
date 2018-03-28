@@ -16,7 +16,7 @@ func TestCRDToRequest_DBIDSize(t *testing.T) {
 	crd.Name = "bankfeed-migrator"
 	crd.UID = "2098284b-1daf-11e8-b83f-028cde27f28a"
 	crd.Spec.Size = "db.t2.small"
-	crd.Spec.Storage = 5
+	crd.Spec.Storage = "5"
 
 	optimus := NewOptimus()
 	req := optimus.CRDToRequest(crd)
@@ -34,7 +34,7 @@ func TestCRDToRequest_HappyPath(t *testing.T) {
 	crd.Name = "test"
 	crd.UID = "2098284b-1daf-11e8-b83f-028cde27f28a"
 	crd.Spec.Size = "db.t2.small"
-	crd.Spec.Storage = 5
+	crd.Spec.Storage = "5"
 	crd.Spec.HA = true
 	tags := map[string]string{
 		"test2":      "test2",
@@ -50,6 +50,6 @@ func TestCRDToRequest_HappyPath(t *testing.T) {
 	req := optimus.CRDToRequest(crd)
 
 	assert.NotNil(t, req)
-	assert.Equal(t, req.ID, database.DatabaseID(fmt.Sprintf("%s-%s-%s", crd.Namespace, crd.Name, crd.GetUID())))
+	assert.Equal(t, req.ID, database.DatabaseID(fmt.Sprintf("%s-%s", crd.Name, crd.GetUID())))
 	assert.Equal(t, req.Metadata, tags)
 }
