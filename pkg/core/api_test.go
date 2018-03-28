@@ -94,7 +94,7 @@ func TestWaitForDBToBeAvailable_AfterOneMili(t *testing.T) {
 		i.EXPECT().GetDB(id).Return(retDBUnavailable, nil).Times(9),
 		i.EXPECT().GetDB(id).Return(retDBAvailable, nil).Times(1),
 	)
-	db, err := WaitForDBToBeAvailable(i, id, 1)
+	db, err := WaitForDBToBeAvailable(i, id, 5)
 
 	assert.Nil(t, err)
 	assert.Equal(t, db, retDBAvailable)

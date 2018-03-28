@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"context"
-
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/database"
 )
 
@@ -83,19 +81,12 @@ func WaitForDBToBeAvailable(i DBGetter, id database.DatabaseID, checkIntervalMil
 
 	numberOfChecks := 10
 	tick := time.Tick(time.Duration(checkIntervalMillis) * time.Millisecond)
-
-	ctx := context.Background()
-	ctx, cf := context.WithTimeout(ctx, time.Duration(numberOfChecks*checkIntervalMillis)*time.Millisecond)
-	defer cf()
+	timeout := time.After(time.Duration(numberOfChecks*checkIntervalMillis) * time.Millisecond)
 
 	for {
 		select {
-		case <-ctx.Done():
-			err := ctx.Err()
-			if err == context.DeadlineExceeded {
-				return nil, fmt.Errorf("database unavailable in %d milliseconds err: %v", numberOfChecks*checkIntervalMillis, err)
-			}
-			return nil, fmt.Errorf("error encountered during waitfordb err: %v", err)
+		case <-timeout:
+			return nil, fmt.Errorf("database unavailable in %d milliseconds", numberOfChecks*checkIntervalMillis)
 		case <-tick:
 			db, err := i.GetDB(id)
 			if err != nil {

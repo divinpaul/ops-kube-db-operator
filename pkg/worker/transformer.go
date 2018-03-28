@@ -7,6 +7,8 @@ import (
 
 	"unicode/utf8"
 
+	"strconv"
+
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/apis/postgresdb/v1alpha1"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/database"
 	"github.com/MYOB-Technology/ops-kube-db-operator/pkg/rds"
@@ -22,13 +24,11 @@ func NewOptimus() *Optimus {
 	return &Optimus{}
 }
 
-type Classes map[string]database.Size
-
 func (o *Optimus) CRDToRequest(crd *v1alpha1.PostgresDB) *database.Request {
 
 	crdName := crd.Name
 	crdNS := crd.Namespace
-	name := truncateBytes(fmt.Sprintf("%s-%s-%s", crdNS, crdName, crd.GetUID()), 63)
+	name := truncateBytes(fmt.Sprintf("%s-%s", crdName, crd.GetUID()), 63)
 	dbID := database.DatabaseID(name)
 
 	size, _ := rds.GetSizeForInstanceClass(crd.Spec.Size)
@@ -38,7 +38,7 @@ func (o *Optimus) CRDToRequest(crd *v1alpha1.PostgresDB) *database.Request {
 		Owner:   crd.Namespace,
 		Name:    crdName,
 		Size:    *size,
-		Storage: crd.Spec.Storage,
+		Storage: convertStorageToInt(crd.Spec.Storage),
 		Metadata: map[string]string{
 			"owner":      crdNS,
 			"crd-name":   crdName,
@@ -65,4 +65,9 @@ func truncateBytes(s string, n int) string {
 		s = s[:len(s)-i]
 	}
 	return s
+}
+
+func convertStorageToInt(storage string) int64 {
+	i, _ := strconv.ParseInt(storage, 10, 64)
+	return i
 }

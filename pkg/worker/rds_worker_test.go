@@ -35,7 +35,7 @@ func TestOnCreate_HappyPath(t *testing.T) {
 	crd.ObjectMeta.Namespace = "test-namespace"
 	crd.ObjectMeta.UID = "2098284b-1daf-11e8-b83f-028cde27f28a"
 	crd.Spec.Size = "db.m4.large"
-	crd.Spec.Storage = 5
+	crd.Spec.Storage = "5"
 
 	// fake client set to assert actions
 	f := fake.NewSimpleClientset()
