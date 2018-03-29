@@ -6,4 +6,4 @@ metadata:
   namespace: platform-enablement
 spec:
   size: "db.t2.small"
-  storage: 10
+  storage: "10"
