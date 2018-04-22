@@ -158,11 +158,12 @@ func genCredentials(req *database.Request, c *DBWorkerConfig) (database.Credenti
 		id := fmt.Sprintf("%s-%s-%s", req.Owner, req.Name, database.GetUserNameForType(credType))
 
 		credential := &database.Credential{
-			Password: database.Password(*pw),
-			Username: database.GetUserNameForType(credType),
-			CredType: database.CredentialType(k),
-			ID:       database.CredentialID(id),
-			Scope:    getScopeForCredType(req.Owner, c.nsSuffix, credType),
+			Password:     database.Password(*pw),
+			Username:     database.GetUserNameForType(credType),
+			CredType:     database.CredentialType(k),
+			ID:           database.CredentialID(id),
+			Scope:        getScopeForCredType(req.Owner, c.nsSuffix, credType),
+			DatabaseName: "postgres",
 		}
 		creds[credType] = credential
 	}
@@ -184,14 +185,16 @@ func legacyGenCredentials(req *database.Request, c *DBWorkerConfig) (database.Cr
 		id := fmt.Sprintf("%s-%s-%s", req.Owner, req.Name, database.GetUserNameForType(credType))
 
 		credential := &database.Credential{
-			Password: database.Password(*pw),
-			Username: u,
-			CredType: database.CredentialType(k),
-			ID:       database.CredentialID(id),
-			Scope:    getScopeForCredType(req.Owner, c.nsSuffix, credType),
+			Password:     database.Password(*pw),
+			Username:     u,
+			CredType:     database.CredentialType(k),
+			ID:           database.CredentialID(id),
+			Scope:        getScopeForCredType(req.Owner, c.nsSuffix, credType),
+			DatabaseName: "postgres",
 		}
 		creds[credType] = credential
 	}
+
 	return creds, nil
 }
 
@@ -202,6 +205,7 @@ func addHostInfoToCredentials(creds database.Credentials, db *database.Database)
 		v.Port = db.Port
 		updatedCreds[k] = v
 	}
+	fmt.Println("In addHostInfoToCredentials")
 	return updatedCreds
 }
 

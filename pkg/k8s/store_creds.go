@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"encoding/binary"
+	"strconv"
 
 	"fmt"
 
@@ -75,9 +76,9 @@ func transformCredentialToSecret(cred *database.Credential, ns string) *v1.Secre
 		HOST:     cred.Host,
 		PASSWORD: string(cred.Password),
 		USER:     cred.Username,
-		PORT:     string(cred.Port),
+		PORT:     strconv.FormatInt(cred.Port, 10),
 		NAME:     cred.DatabaseName,
-		URL:      fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=require", cred.Username, cred.Password, cred.Host, cred.Port, cred.DatabaseName),
+		URL:      fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=require", cred.Username, cred.Password, cred.Host, strconv.FormatInt(cred.Port, 10), cred.DatabaseName),
 	}
 
 	return &v1.Secret{
