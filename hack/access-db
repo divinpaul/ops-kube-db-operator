@@ -27,7 +27,7 @@ then
   exit 1
 fi
 
-DB_SECRET_NAME="$NAMESPACE-$NAME-admin"
+DB_SECRET_NAME="$NAME-admin"
 DB_AUTH=`kubectl get -n $NAMESPACE secrets $DB_SECRET_NAME -o json`
 DB_USER=`echo $DB_AUTH | jq -r '.data.DB_USER'|base64 --decode`
 DB_PASSWORD=`echo $DB_AUTH | jq -r '.data.DB_PASSWORD'|base64 --decode`
