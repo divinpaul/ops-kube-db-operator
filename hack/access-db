@@ -4,6 +4,8 @@
 # TODO: update `--db` flag to represent the actual db name once that is changed in the code
 ###
 
+set -e
+
 NAMESPACE=$1
 NAME=$2
 
